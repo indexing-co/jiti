@@ -1,0 +1,10 @@
+.DS_Store
+.vscode
+
+dist
+node_modules
+.husky/_
+tmp
+.env*
+*.env
+.parcel-cache
