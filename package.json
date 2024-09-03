@@ -7,7 +7,7 @@
   "module": "dist/module.js",
   "types": "dist/types.d.ts",
   "scripts": {
-    "build": "parcel build",
+    "build": "rm -rf dist .parcel-cache && parcel build",
     "lint": "prettier --write **.ts && eslint .",
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "parcel watch"

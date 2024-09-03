@@ -2,7 +2,7 @@ import { keccak256 } from 'viem';
 
 export function evmAddressToChecksum(address: string) {
   if (!address || !/^(0x)?[0-9a-f]{40}$/i.test(address)) {
-    throw new Error(`Invalid address: "${address}"`);
+    return null;
   }
 
   const stripAddress = address.slice(2).toLowerCase();
