@@ -1,4 +1,4 @@
-import { evmAddresstoChecksum } from './evm-address-to-checksum';
+import { evmAddressToChecksum } from './evm-address-to-checksum';
 
 export function normalizeEVMBlock(rawBlock: Record<string, unknown>): Record<string, unknown> {
   for (const k of ['baseFeePerGas', 'gasLimit', 'gasUsed', 'number', 'size', 'timestamp']) {
@@ -13,7 +13,7 @@ export function normalizeEVMBlock(rawBlock: Record<string, unknown>): Record<str
     }
   }
   for (const k of ['miner']) {
-    rawBlock[k] = evmAddresstoChecksum(rawBlock[k] as string);
+    rawBlock[k] = evmAddressToChecksum(rawBlock[k] as string);
   }
 
   rawBlock.transactions = (
@@ -51,12 +51,12 @@ export function normalizeEVMBlock(rawBlock: Record<string, unknown>): Record<str
 
     for (const k of ['from', 'to']) {
       if (typeof tx[k] === 'string') {
-        tx[k] = evmAddresstoChecksum(tx[k] as string);
+        tx[k] = evmAddressToChecksum(tx[k] as string);
       }
     }
     for (const k of ['contractAddress']) {
       if (typeof tx.receipt[k] === 'string') {
-        tx.receipt[k] = evmAddresstoChecksum(tx.receipt[k] as string);
+        tx.receipt[k] = evmAddressToChecksum(tx.receipt[k] as string);
       }
     }
 
@@ -69,7 +69,7 @@ export function normalizeEVMBlock(rawBlock: Record<string, unknown>): Record<str
           log[k] = parseInt(log[k] as string);
         }
       }
-      log['address'] = evmAddresstoChecksum(log['address'] as string);
+      log['address'] = evmAddressToChecksum(log['address'] as string);
       return log;
     });
 

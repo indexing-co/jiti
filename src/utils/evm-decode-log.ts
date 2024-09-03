@@ -29,7 +29,7 @@ export function evmDecodeLog(
 
   const sig = typeof signatures === 'string' ? signatures : signatures.signature;
   if ((sig.match(/ indexed /g)?.length || 0) === log.topics.length - 1) {
-    const [, rest] = sig.split('(');
+    const [methodName, rest] = sig.split('(');
     const params = rest
       .split(')')[0]
       .split(',')
@@ -40,7 +40,7 @@ export function evmDecodeLog(
     if (log.topics[0] === topic0) {
       const keys = [];
 
-      const abi = params.map((p) => {
+      const abiParams = params.map((p) => {
         const parts = p.split(' ');
         const type = parts[0];
         const name = parts[parts.length - 1];
@@ -56,7 +56,11 @@ export function evmDecodeLog(
       });
 
       try {
-        const decoded = decodeEventLog({ abi, data: log.data as `0x${string}`, topics: log.topics as [] });
+        const { args: decoded } = decodeEventLog({
+          abi: [{ type: 'event', name: methodName.trim(), inputs: abiParams }],
+          data: log.data as `0x${string}`,
+          topics: log.topics as [],
+        }) as { args: Record<string, unknown> };
 
         for (const key in decoded) {
           if (!keys.includes(key)) {

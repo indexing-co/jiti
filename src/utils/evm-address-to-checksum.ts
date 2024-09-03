@@ -1,6 +1,6 @@
 import { keccak256 } from 'viem';
 
-export function evmAddresstoChecksum(address: string) {
+export function evmAddressToChecksum(address: string) {
   if (!address || !/^(0x)?[0-9a-f]{40}$/i.test(address)) {
     throw new Error(`Invalid address: "${address}"`);
   }
