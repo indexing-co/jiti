@@ -6,6 +6,8 @@ export function evmMethodSignatureToHex(sig: string): string {
     .split(')')[0]
     .split(',')
     .map((p) => p.trim());
-  const topic0 = keccak256(`${method}(${params.map((p) => p.split(' ')[0]).join(',')})` as `0x${string}`);
+  const topic0 = keccak256(
+    `${method.split(' ').pop()}(${params.map((p) => p.split(' ')[0]).join(',')})` as `0x${string}`
+  );
   return topic0;
 }

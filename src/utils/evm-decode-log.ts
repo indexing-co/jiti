@@ -1,4 +1,4 @@
-import { decodeEventLog } from 'viem';
+import { decodeEventLog, parseAbi } from 'viem';
 
 import { evmMethodSignatureToHex } from './evm-method-signature-to-hex';
 
@@ -27,43 +27,20 @@ export function evmDecodeLog(
     }
   }
 
-  const sig = typeof signatures === 'string' ? signatures : signatures.signature;
+  let sig = (typeof signatures === 'string' ? signatures : signatures.signature).trim();
+  if (!sig.startsWith('event ')) {
+    sig = 'event ' + sig;
+  }
+  const topic0 = typeof signatures !== 'string' && signatures.topic0 ? signatures.topic0 : evmMethodSignatureToHex(sig);
   if ((sig.match(/ indexed /g)?.length || 0) === log.topics.length - 1) {
-    const [, rest] = sig.split('(');
-    const params = rest
-      .split(')')[0]
-      .split(',')
-      .map((p) => p.trim());
-    const topic0 =
-      typeof signatures !== 'string' && signatures.topic0 ? signatures.topic0 : evmMethodSignatureToHex(sig);
-
     if (log.topics[0] === topic0) {
-      const keys = [];
-
-      const abi = params.map((p) => {
-        const parts = p.split(' ');
-        const type = parts[0];
-        const name = parts[parts.length - 1];
-        keys.push(name);
-        const indexed = parts.includes('indexed');
-
-        return {
-          type,
-          internalType: type,
-          name,
-          indexed,
-        };
-      });
-
       try {
-        const decoded = decodeEventLog({ abi, data: log.data as `0x${string}`, topics: log.topics as [] });
-
-        for (const key in decoded) {
-          if (!keys.includes(key)) {
-            delete decoded[key];
-          }
-        }
-        return decoded;
+        const result = decodeEventLog({
+          abi: parseAbi([sig]),
+          data: log.data as `0x${string}`,
+          topics: log.topics as [],
+        });
+        return result.args as unknown as Record<string, unknown>;
       } catch (e) {
         // ignore this
       }

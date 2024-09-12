@@ -7,7 +7,7 @@
   "module": "dist/module.js",
   "types": "dist/types.d.ts",
   "scripts": {
-    "build": "parcel build",
+    "build": "rm -rf dist .parcel-cache && parcel build",
     "lint": "prettier --write **.ts && eslint .",
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "parcel watch"
@@ -17,6 +17,7 @@
   "devDependencies": {
     "@parcel/packager-ts": "^2.12.0",
     "@parcel/transformer-typescript-types": "^2.12.0",
+    "@types/isomorphic-fetch": "^0.0.39",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
     "husky": "^9.1.5",
@@ -27,6 +28,7 @@
     "typescript-eslint": "^8.3.0"
   },
   "dependencies": {
+    "isomorphic-fetch": "^3.0.0",
     "viem": "^2.21.1"
   }
 }
