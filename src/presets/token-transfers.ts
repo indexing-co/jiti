@@ -4,6 +4,7 @@ type NetworkTransfer = {
   amount: bigint;
   blockNumber: number;
   from: string;
+  index?: string;
   timestamp: string;
   to: string;
   token?: string;
@@ -54,6 +55,7 @@ export function tokenTransfers(block) {
               amount: txfer.decoded.value as bigint,
               blockNumber: tx.blockNumber as number,
               from: evmAddressToChecksum(txfer.decoded.from as string) || NULL_ADDRESS,
+              index: log.logIndex,
               timestamp,
               to: evmAddressToChecksum(txfer.decoded.to as string) || NULL_ADDRESS,
               token: evmAddressToChecksum(log.address as string),
@@ -72,6 +74,7 @@ export function tokenTransfers(block) {
               amount: BigInt(action.value),
               blockNumber: tx.blockNumber as number,
               from: evmAddressToChecksum(action.from) || NULL_ADDRESS,
+              index: trace.traceAddress?.join('-'),
               timestamp,
               to: evmAddressToChecksum(action.to) || NULL_ADDRESS,
               transactionGasFee,
