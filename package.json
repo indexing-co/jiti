@@ -1,5 +1,5 @@
 {
-  "name": "@indexing-co/jiti",
+  "name": "@indexing/jiti",
   "version": "1.0.0",
   "description": "Just In Time Indexing, for all",
   "source": "src/index.ts",

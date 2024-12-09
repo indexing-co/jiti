@@ -21,3 +21,8 @@ yarn.lock
 node_modules/
 .DS_Store
 *.log
+
+# Allow specific files in the dist folder
+!dist/types.d.ts
+!dist/main.js
+!dist/module.js
