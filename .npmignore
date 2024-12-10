@@ -1,0 +1,28 @@
+# Exclude source files and development directories
+src/
+.github/
+.husky/
+.vscode/
+
+# Exclude configuration and setup files
+*.ts
+tsconfig.json
+.prettierrc
+eslint.config.js
+.eslintrc.*
+.parcel-cache/
+
+# Exclude lock files and environment files
+package-lock.json
+yarn.lock
+.env
+
+# Ignore any local or temp files
+node_modules/
+.DS_Store
+*.log
+
+# Allow specific files in the dist folder
+!dist/types.d.ts
+!dist/main.js
+!dist/module.js

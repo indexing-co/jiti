@@ -4,6 +4,7 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "outDir": "dist",
+    "declaration": true, 
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "sourceMap": true,
@@ -16,5 +17,6 @@
     // This improves issue grouping in Sentry.
     "sourceRoot": "/"
   },
-  "exclude": ["tmp"]
+  "include": ["src/**/*"],
+  "exclude": ["tmp", "dist"]
 }
