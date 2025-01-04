@@ -1,10 +1,12 @@
 # Just In Time Indexing (JITI)
 
-Open source template library for the JITI community. 
+Open source template library for the JITI community.
+
+NOTE: This is an active work in progress and not yet ready for community usage.
 
 # Contributing
 
-This package will be ready for external contributors in early 2025. 
+This package will be ready for external contributors in early 2025.
 
 ## License
 

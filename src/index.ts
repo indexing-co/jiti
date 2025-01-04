@@ -1,14 +1,13 @@
 import { templates } from './templates';
-import * as presets from './presets';
 import * as utils from './utils';
 import * as types from './types';
 
-export { presets, utils, types };
+export { utils, types };
 
 export function getAllTemplates() {
-    return templates;
-  }
+  return templates;
+}
 
 export function getTemplateByKey(key: string) {
-    return templates.find((template) => template.key === key);
-  }
+  return templates.find((template) => template.key === key);
+}
