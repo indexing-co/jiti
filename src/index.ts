@@ -1,13 +1,15 @@
-import { templates } from './templates';
+import { templates as templateList } from './templates';
 import * as utils from './utils';
 import * as types from './types';
 
-export { utils, types };
+const templates = templateList.reduce((a, b) => ({ ...a, [b.key]: Object.assign({}, b) }), {});
+
+export { utils, templates, types };
 
 export function getAllTemplates() {
-  return templates;
+  return templateList.slice();
 }
 
 export function getTemplateByKey(key: string) {
-  return templates.find((template) => template.key === key);
+  return templateList.slice().find((template) => template.key === key);
 }

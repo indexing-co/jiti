@@ -1,6 +1,6 @@
 {
   "name": "@indexing/jiti",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Just In Time Indexing, for all",
   "source": "src/index.ts",
   "main": "dist/main.js",
@@ -9,7 +9,7 @@
   "scripts": {
     "build": "rm -rf dist .parcel-cache && parcel build --dist-dir dist",
     "lint": "prettier --write **.ts && eslint .",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npx ts-node tests.ts",
     "watch": "parcel watch"
   },
   "author": "Indexing Co",
@@ -18,6 +18,7 @@
     "@parcel/packager-ts": "^2.12.0",
     "@parcel/transformer-typescript-types": "^2.12.0",
     "@types/isomorphic-fetch": "^0.0.39",
+    "@types/node": "^22.10.6",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
     "husky": "^9.1.5",

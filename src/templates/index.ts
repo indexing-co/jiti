@@ -1,4 +1,4 @@
-import allBlocks from './all-blocks';
-import tokenTransfers from './token-transfers';
+import rawTemplate from './raw';
+import tokenTransfersTemplate from './token-transfers';
 
-export const templates = [allBlocks, tokenTransfers];
+export const templates = [rawTemplate, tokenTransfersTemplate];

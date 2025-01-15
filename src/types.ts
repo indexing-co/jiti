@@ -9,6 +9,7 @@ export type Template = {
     payload: Record<string, unknown>,
     _ctx?: Record<string, unknown> & { params: Record<string, unknown> }
   ) => unknown;
+  tests: TemplateTest[];
 };
 
 export type Param = {
@@ -17,4 +18,10 @@ export type Param = {
   type: 'NETWORK' | 'ADDRESS' | 'STRING';
   multiple?: boolean;
   optional?: boolean;
+};
+
+export type TemplateTest = {
+  params: Record<string, unknown>;
+  payload: `https://${string}` | Record<string, unknown>;
+  output: unknown;
 };
