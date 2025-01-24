@@ -5,7 +5,7 @@ const rawTemplate: Template = {
   name: 'Raw Block Data',
   description: 'Get all blocks with all available fields',
   tags: ['EVM', 'RAW'],
-  disabled: false,
+  disabled: true,
   params: [],
   transform: (payload) => payload,
   tests: [
