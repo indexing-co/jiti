@@ -22,6 +22,7 @@ jobs:
           git config --global user.email "github-actions@github.com"
           npm version patch --no-git-tag-version
       
+      
       - name: Commit and Push Changes
         run: |
           git add package.json
