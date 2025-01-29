@@ -15,15 +15,20 @@ jobs:
           registry-url: "https://registry.npmjs.org/"
 
       - run: npm install
-      - name: Commit and Push Changes
+      
+      - name: Bump Version
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
-          git add .
+          npm version patch --no-git-tag-version
+      
+      - name: Commit and Push Changes
+        run: |
+          git add package.json
           git commit -m "Auto-update package version" || echo "No changes to commit"
-          git push origin main
-      - name: Bump Version
-        run: npm version patch
-      - run: npm publish
+          git push origin main || echo "No changes to push"
+
+      - name: Publish to npm
+        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
