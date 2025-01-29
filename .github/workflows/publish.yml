@@ -15,7 +15,13 @@ jobs:
           registry-url: "https://registry.npmjs.org/"
 
       - run: npm install
-      - run: npm version patch
+      - run: |
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
+        git add .
+        git commit -m "Auto-update package version"
+        git push origin main
+        npm version patch  # Auto-increment version
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
