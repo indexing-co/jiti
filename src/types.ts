@@ -15,9 +15,11 @@ export type Template = {
 export type Param = {
   key: string;
   name: string;
-  type: 'NETWORK' | 'ADDRESS' | 'STRING';
+  type: 'NETWORK' | 'ADDRESS' | 'STRING' | 'NUMBER' | 'BOOLEAN';
   multiple?: boolean;
   optional?: boolean;
+  values?: string[];
+  default?: string;
 };
 
 export type TemplateTest = {

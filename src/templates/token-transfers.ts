@@ -27,7 +27,7 @@ const tokenTransfersTemplate: Template = {
     { key: 'network', name: 'Network', type: 'NETWORK', optional: false },
     { key: 'tokenAddress', name: 'Token Address', type: 'ADDRESS', optional: true },
     { key: 'walletAddress', name: 'Wallet Address', type: 'ADDRESS', optional: true },
-    { key: 'tokenTypes', name: 'Token Types', type: 'STRING', multiple: true, optional: true },
+    { key: 'tokenTypes', name: 'Token Types', type: 'STRING', multiple: true, optional: true, values: ['NATIVE', 'TOKEN', 'NFT'] },
   ],
 
   transform: (block, _ctx) => {
