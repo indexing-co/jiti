@@ -25,7 +25,7 @@ const tokenTransfersTemplate: Template = {
   disabled: false,
   params: [
     { key: 'network', name: 'Network', type: 'NETWORK', optional: false },
-    { key: 'tokenAddress', name: 'Token Address', type: 'ADDRESS', optional: true },
+    { key: 'contractAddress', name: 'Contract Address', type: 'ADDRESS', optional: true },
     { key: 'walletAddress', name: 'Wallet Address', type: 'ADDRESS', optional: true },
     { key: 'tokenTypes', name: 'Token Types', type: 'STRING', multiple: true, optional: true, values: ['NATIVE', 'TOKEN', 'NFT'] },
   ],
@@ -184,7 +184,7 @@ const tokenTransfersTemplate: Template = {
       if (txfer.amount <= BigInt(0)) {
         return false;
       }
-      if (_ctx.params.tokenAddress && _ctx.params.tokenAddress !== txfer.token) {
+      if (_ctx.params.contractAddress && _ctx.params.contractAddress !== txfer.token) {
         return false;
       }
       if (_ctx.params.walletAddress && ![txfer.from, txfer.to].includes(_ctx.params.walletAddress as string)) {
