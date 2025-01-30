@@ -37,7 +37,7 @@ jobs:
       - name: Commit and Push Changes
         run: |
           git add package.json package-lock.json
-          git commit -m "Auto-update package version" || echo "No changes to commit"
+          git commit -m "Auto-update package version [skip ci]" || echo "No changes to commit"
           git push git@github.com:indexing-co/jiti.git main || echo "No changes to push"
 
       - name: Publish to npm
