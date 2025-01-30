@@ -28,18 +28,15 @@ jobs:
       
       - name: Bump Version
         run: |
-          ssh -T git@github.com
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
           npm version patch --no-git-tag-version
       
       - run: npm run build
       
       - name: Commit and Push Changes
         run: |
-          git add package.json package-lock.json
-          git commit -m "Auto-update package version" || echo "No changes to commit"
-          git push origin main || echo "No changes to push"
+        git add package.json package-lock.json
+        git commit -m "Auto-update package version" || echo "No changes to commit"
+        git push git@github.com:indexing-co/jiti.git main || echo "No changes to push"
 
       - name: Publish to npm
         run: npm publish
