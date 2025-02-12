@@ -46,7 +46,7 @@ const tokenTransfersTemplate: Template = {
       case 'APTOS_TESTNET': {
         for (const tx of block.transactions as Record<string, unknown>[]) {
           if (!tx?.events || !Array.isArray(tx.events)) {
-            return [];
+            break;
           }
 
           const timestamp = tx.timestamp ? new Date(parseInt(tx.timestamp as string) / 1000).toISOString() : null;
@@ -67,7 +67,6 @@ const tokenTransfersTemplate: Template = {
 
           for (const partial of Object.values(txfersByKey)) {
             if (!partial.from || !partial.to) continue;
-
             transfers.push({
               amount: BigInt(partial.amount),
               blockNumber: parseInt(block.block_height as string),
@@ -88,7 +87,7 @@ const tokenTransfersTemplate: Template = {
       case 'BITCOIN_TESTNET':
       case 'LITCOIN': // @TODO
       case 'DOGECOIN': {
-        for (const tx of block.txs as Record<string, unknown>[]) {
+        for (const tx of block.tx as Record<string, unknown>[]) {
           const timestamp = tx.time ? new Date((tx.time as number) * 1000).toISOString() : null;
           const vin = tx.vin[0] as { prevout?: { scriptPubKey: { address: string } }; vout?: number };
           const vout = tx.vout as { value: number; scriptPubKey?: { address: string; addresses?: string[] } }[];
@@ -99,12 +98,12 @@ const tokenTransfersTemplate: Template = {
             vout[fromVout]?.scriptPubKey?.address ||
             vout[fromVout]?.scriptPubKey?.addresses?.[0];
           if (!fromAddress) {
-            return [];
+            break;
           }
 
           for (const v of vout) {
             transfers.push({
-              amount: BigInt(v.value) * BigInt(Math.pow(10, 8)),
+              amount: BigInt(Math.round(v.value * Math.pow(10, 8))),
               blockNumber: block.height as number,
               from: fromAddress,
               timestamp,
@@ -150,7 +149,7 @@ const tokenTransfersTemplate: Template = {
           const outputs = typedTx.operations.filter((op) => op.type === 'output');
 
           if (!inputs.length && !outputs.length) {
-            return [];
+            break;
           }
 
           const fromAddress = inputs[0]?.account?.address;
@@ -172,10 +171,9 @@ const tokenTransfersTemplate: Template = {
           for (const out of outputs) {
             const rawValue = out.amount?.value || '0';
             const absoluteValue = BigInt(rawValue);
-
             transfers.push({
               amount: absoluteValue < 0 ? -absoluteValue : absoluteValue,
-              blockNumber: (block.block_indentifier as { index: number }).index,
+              blockNumber: (block.block_identifier as { index: number }).index,
               from: fromAddress,
               timestamp,
               to: out.account?.address || '',
@@ -190,30 +188,62 @@ const tokenTransfersTemplate: Template = {
       }
 
       case 'RIPPLE': {
-        for (const tx of block.transactions as unknown[]) {
-          const typedTx = tx as {
-            Account: string;
-            Amount: string;
-            Destination: string;
-            Fee: string;
-            hash: string;
-            TransactionType: string;
-            date: number;
-          };
-          if (typedTx.TransactionType === 'Payment') {
-            transfers.push({
-              amount: BigInt(typedTx.Amount),
-              blockNumber: parseInt(block.ledger_index as string),
-              from: typedTx.Account,
-              timestamp: typedTx.date ? new Date((typedTx.date + 946684800) * 1000).toISOString() : null,
-              to: typedTx.Destination,
-              transactionGasFee: BigInt(typedTx.Fee),
-              transactionHash: typedTx.hash,
-              token: null,
-              tokenType: 'NATIVE',
-            });
-          }
+        if (!Array.isArray(block.transactions)) {
+          break;
         }
+
+        for (const rawTx of block.transactions) {
+          const typedTx = rawTx as {
+            Account?: string;
+            Amount?: string | { currency: string; issuer: string; value: string };
+            Destination?: string;
+            Fee?: string;
+            hash?: string;
+            TransactionType?: string;
+            date?: number;
+            metaData?: {
+              delivered_amount?: string | { currency: string; issuer: string; value: string };
+            };
+          };
+
+          if (typedTx.TransactionType !== 'Payment') {
+            continue;
+          }
+
+          const deliveredOrAmount = typedTx.metaData?.delivered_amount ?? typedTx.Amount ?? '0';
+
+          function parseRippleDeliveredAmount(
+            delivered: string | number | { currency: string; issuer: string; value: string } | undefined
+          ): bigint {
+            if (!delivered) {
+              return 0n;
+            }
+
+            if (typeof delivered === 'object') {
+              const floatVal = parseFloat(delivered.value);
+              const smallestUnit = Math.round(floatVal * 1_000_000);
+              return BigInt(smallestUnit);
+            }
+
+            const s = String(delivered);
+            return BigInt(s);
+          }
+
+          const parsedAmount = parseRippleDeliveredAmount(deliveredOrAmount);
+
+          transfers.push({
+            amount: parsedAmount,
+            blockNumber: parseInt(block.ledger_index as string, 10),
+            from: typedTx.Account ?? 'UNKNOWN',
+            timestamp: typedTx.date ? new Date((typedTx.date + 946684800) * 1000).toISOString() : null,
+            to: typedTx.Destination ?? 'UNKNOWN',
+            token: 'XRP',
+            tokenType: 'NATIVE',
+            transactionGasFee: BigInt(typedTx.Fee ?? '0'),
+            transactionHash: typedTx.hash ?? '',
+          });
+        }
+
         break;
       }
 
@@ -555,7 +585,7 @@ const tokenTransfersTemplate: Template = {
       if (txfer.amount <= BigInt(0)) {
         return false;
       }
-      if (_ctx.params.contractAddress && _ctx.params.contractAddress !== txfer.token) {
+      if (_ctx.params.contractAddress && _ctx.params.contractAddress !== txfer.token && txfer.token) {
         return false;
       }
       if (_ctx.params.walletAddress && ![txfer.from, txfer.to].includes(_ctx.params.walletAddress as string)) {
@@ -568,6 +598,30 @@ const tokenTransfersTemplate: Template = {
   },
 
   tests: [
+    // APTOS
+    {
+      params: {
+        network: 'APTOS',
+        walletAddress: '0xb3589951a7d8579a2918a749260804047abc60438bf0738c4e67683e972b41cd',
+        contractAddress: '0x1',
+      },
+      payload: 'https://jiti.indexing.co/networks/aptos/237372198',
+      output: [
+        {
+          amount: 12776498n,
+          blockNumber: 237372198,
+          from: '0xb3589951a7d8579a2918a749260804047abc60438bf0738c4e67683e972b41cd',
+          timestamp: '2024-10-10T16:59:34.414Z',
+          to: '0x1f5d15c9a1330389bda239ed2f40d8d2a2ba446e7a48ee57483a047d5ed1aafe',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 507n,
+          transactionHash: '0xbabaf20c07c80ace9f1f2f6539e0df6c57c9a6b24d5e62fa4989b46c0807d9bb',
+        },
+      ],
+    },
+
+    // BASE
     {
       params: {
         network: 'BASE',
@@ -591,11 +645,98 @@ const tokenTransfersTemplate: Template = {
       ],
     },
 
-    // @TODO: test + fix APTOS
-    // @TODO: test + fix DOGECOIN
-    // @TODO: test + fix CARDANO
-    // @TODO: test + fix RIPPLE
-    // @TODO: test + fix STELLAR
+    // DOGECOIN
+    {
+      params: {
+        network: 'DOGECOIN',
+        walletAddress: 'DMqRVLrhbam3Kcfddpxd6EYvEBbpi3bEpP',
+        contractAddress: '',
+      },
+      payload: 'https://jiti.indexing.co/networks/dogecoin/1000075',
+      output: [
+        {
+          amount: 1008521000000n,
+          blockNumber: 1000075,
+          from: 'DMqRVLrhbam3Kcfddpxd6EYvEBbpi3bEpP',
+          to: 'DMqRVLrhbam3Kcfddpxd6EYvEBbpi3bEpP',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 0n,
+          transactionHash: '9873fe46ab29f61cefdec498b691af68e0ad29a7599c94f42d2d4e9a5d461dbe',
+          timestamp: '2015-12-13T19:59:52.000Z',
+        },
+      ],
+    },
+
+    // CARDANO
+    {
+      params: {
+        network: 'CARDANO',
+        walletAddress:
+          'addr1q9syxu908lef7r6rsvk0h7gsx3rxj22cuykgx2a2l4hcfd8e9y2e9vtv4w9dyej96w99wwj8hwgc273862lk6a3vt30qjjrund',
+        contractAddress: '',
+      },
+      payload: 'https://jiti.indexing.co/networks/cardano/11443286',
+      output: [
+        {
+          amount: 1110000n,
+          blockNumber: 11443286,
+          from: 'addr1qymdv285few5tyqvya86rl97r9e608njs37shfew6l2nn473aw2pcnrcvfwfgg2dnew99m4tjj0apsu7232w2euzwpysndh0h3',
+          timestamp: null,
+          to: 'addr1q9syxu908lef7r6rsvk0h7gsx3rxj22cuykgx2a2l4hcfd8e9y2e9vtv4w9dyej96w99wwj8hwgc273862lk6a3vt30qjjrund',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 174257n,
+          transactionHash: '261c42ba9124f55d8e169ebb692cd3759d796a54369acb316ee449b546e79309',
+        },
+      ],
+    },
+
+    // RIPPLE
+    {
+      params: {
+        network: 'RIPPLE',
+        walletAddress: 'rUUgoiJmjTPEbxfZ4RsS9pVS9Kv813Wpui',
+        contractAddress: '',
+      },
+      payload: 'https://jiti.indexing.co/networks/ripple/88104659',
+      output: [
+        {
+          amount: 238n,
+          blockNumber: 88104659,
+          from: 'rMAGnTv4eMWktZnhKa5cHcDiY84ZiKUaQm',
+          timestamp: null,
+          to: 'rUUgoiJmjTPEbxfZ4RsS9pVS9Kv813Wpui',
+          token: 'XRP',
+          tokenType: 'NATIVE',
+          transactionGasFee: 15n,
+          transactionHash: '03564E6109261CDE73FCC5062C2A0A70F365CB1A0F9408C065B60EC3E94E4DBF',
+        },
+      ],
+    },
+
+    // STELLAR
+    {
+      params: {
+        network: 'STELLAR',
+        walletAddress: 'GA5KLTNAWV27IOTBX5PKUOMVWFMLX4X7CPMQJ4QLR3G266MMVL7NMA4X',
+        contractAddress: 'GC4Z2TDXU4GXVLHOS5P5SU6HKBCP7NKN4TJ5ZGTVRBW7MCBZTU7SNUSA',
+      },
+      payload: 'https://jiti.indexing.co/networks/stellar/51720546',
+      output: [
+        {
+          amount: 150000n,
+          blockNumber: 51720546,
+          from: 'GA5KLTNAWV27IOTBX5PKUOMVWFMLX4X7CPMQJ4QLR3G266MMVL7NMA4X',
+          timestamp: '2024-05-18T04:41:39Z',
+          to: 'GC4Z2TDXU4GXVLHOS5P5SU6HKBCP7NKN4TJ5ZGTVRBW7MCBZTU7SNUSA',
+          token: 'GC4Z2TDXU4GXVLHOS5P5SU6HKBCP7NKN4TJ5ZGTVRBW7MCBZTU7SNUSA',
+          tokenType: 'TOKEN',
+          transactionGasFee: 100n,
+          transactionHash: '4fb2441210cbe87f5003abdfa86f03bafa54f789ed041feccbda0bd054297c4d',
+        },
+      ],
+    },
   ],
 };
 
