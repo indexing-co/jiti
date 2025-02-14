@@ -205,40 +205,32 @@ const tokenTransfersTemplate: Template = {
               delivered_amount?: string | { currency: string; issuer: string; value: string };
             };
           };
-
           if (typedTx.TransactionType !== 'Payment') {
             continue;
           }
-
           const deliveredOrAmount = typedTx.metaData?.delivered_amount ?? typedTx.Amount ?? '0';
+          let tokenSymbol = 'XRP';
+          let tokenType: 'NATIVE' | 'TOKEN' | 'NFT' = 'NATIVE';
 
-          function parseRippleDeliveredAmount(
-            delivered: string | number | { currency: string; issuer: string; value: string } | undefined
-          ): bigint {
-            if (!delivered) {
-              return 0n;
-            }
+          let parsedAmount: bigint;
 
-            if (typeof delivered === 'object') {
-              const floatVal = parseFloat(delivered.value);
-              const smallestUnit = Math.round(floatVal * 1_000_000);
-              return BigInt(smallestUnit);
-            }
-
-            const s = String(delivered);
-            return BigInt(s);
+          if (typeof deliveredOrAmount === 'object') {
+            tokenSymbol = deliveredOrAmount.currency?.toUpperCase() ?? 'UNKNOWN';
+            tokenType = 'TOKEN';
+            const floatVal = parseFloat(deliveredOrAmount.value);
+            const smallestUnit = Math.round(floatVal * 1_000_000);
+            parsedAmount = BigInt(smallestUnit);
+          } else {
+            parsedAmount = BigInt(String(deliveredOrAmount));
           }
-
-          const parsedAmount = parseRippleDeliveredAmount(deliveredOrAmount);
-
           transfers.push({
             amount: parsedAmount,
             blockNumber: parseInt(block.ledger_index as string, 10),
             from: typedTx.Account ?? 'UNKNOWN',
             timestamp: typedTx.date ? new Date((typedTx.date + 946684800) * 1000).toISOString() : null,
             to: typedTx.Destination ?? 'UNKNOWN',
-            token: 'XRP',
-            tokenType: 'NATIVE',
+            token: tokenSymbol,
+            tokenType: tokenType,
             transactionGasFee: BigInt(typedTx.Fee ?? '0'),
             transactionHash: typedTx.hash ?? '',
           });
@@ -386,8 +378,66 @@ const tokenTransfersTemplate: Template = {
         break;
       }
 
-      // @TODO:
       case 'STARKNET': {
+        if (!Array.isArray(block.transactions)) {
+          break;
+        }
+
+        for (const tx of block.transactions) {
+          const typedTx = tx as {
+            transaction_hash: string;
+            sender_address: string;
+            receipt?: {
+              actual_fee?: {
+                amount?: string;
+                unit?: string;
+              };
+              events?: {
+                keys: string[];
+                data: string[];
+              }[];
+            };
+            timestamp?: number | string;
+            data_availability?: Record<string, unknown>;
+          };
+
+          const timestamp = block.timestamp ? new Date((block.timestamp as number) * 1000).toISOString() : null;
+
+          let transactionGasFee = BigInt(0);
+          if (typedTx?.receipt?.actual_fee?.amount) {
+            transactionGasFee = BigInt(typedTx.receipt.actual_fee.amount);
+          }
+
+          const transactionHash = typedTx.transaction_hash;
+
+          if (!typedTx.receipt?.events) {
+            continue;
+          }
+
+          for (const event of typedTx.receipt.events) {
+            if (!event.keys.includes('0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9')) {
+              continue;
+            }
+            if (event.data.length < 3) {
+              continue;
+            }
+
+            const [from, to, amountHex] = event.data;
+            const amount = BigInt(amountHex);
+
+            transfers.push({
+              amount,
+              blockNumber: block.block_number as number,
+              from,
+              timestamp,
+              to,
+              token: null,
+              tokenType: 'NATIVE',
+              transactionGasFee,
+              transactionHash,
+            });
+          }
+        }
         break;
       }
 
@@ -425,14 +475,76 @@ const tokenTransfersTemplate: Template = {
         break;
       }
 
-      // @TODO:
       case 'SUI': {
-        // @TODO
+        const blockNumber = block.sequence as number;
+        const blockTimestamp = new Date(block.timestamp as number).toISOString();
+
+        for (const tx of (block.transactions as any[]) || []) {
+          const transactionHash = tx.digest as string;
+          const transactionGasFee = BigInt((tx.gasFee as string) || '0');
+
+          for (const bc of (tx.balanceChanges as any[]) || []) {
+            transfers.push({
+              blockNumber,
+              from: tx.sender ? (tx.sender as string) : undefined,
+              to: tx.receiver ? (tx.receiver as string) : undefined,
+              amount: BigInt(bc.amount as string),
+              token: bc.coinRepr as string,
+              tokenType: 'NATIVE',
+              timestamp: blockTimestamp,
+              transactionHash,
+              transactionGasFee,
+            });
+          }
+        }
+
         break;
       }
 
-      // @TODO:
       case 'TON': {
+        const blockNumber = block.seqno as number;
+        const blockTimestamp = new Date((block.shards?.[0]?.gen_utime as number) * 1000).toISOString();
+
+        for (const shard of (block.shards as any[]) || []) {
+          for (const tx of (shard.transactions as any[]) || []) {
+            const transactionLT = tx.transaction_id.lt as string;
+            const transactionHash = tx.transaction_id.hash as string;
+            const transactionFee = BigInt((tx.fee as string) || '0');
+
+            const inVal = BigInt((tx.in_msg?.value as string) || '0');
+            if (inVal > 0n) {
+              transfers.push({
+                blockNumber,
+                from: tx.in_msg?.source?.account_address as string,
+                to: tx.address?.account_address as string,
+                amount: inVal,
+                token: 'TON',
+                tokenType: 'NATIVE',
+                timestamp: blockTimestamp,
+                transactionHash,
+                transactionGasFee: transactionFee,
+              });
+            }
+
+            for (const outMsg of (tx.out_msgs as any[]) || []) {
+              const outVal = BigInt((outMsg.value as string) || '0');
+              if (outVal > 0n) {
+                transfers.push({
+                  blockNumber,
+                  from: outMsg.source?.account_address as string,
+                  to: outMsg.destination?.account_address as string,
+                  amount: outVal,
+                  token: 'TON',
+                  tokenType: 'NATIVE',
+                  timestamp: blockTimestamp,
+                  transactionHash,
+                  transactionGasFee: transactionFee,
+                });
+              }
+            }
+          }
+        }
+
         break;
       }
 
@@ -580,7 +692,7 @@ const tokenTransfersTemplate: Template = {
         break;
       }
     }
-
+    //console.log(transfers[0]);
     transfers = transfers.filter((txfer) => {
       if (txfer.amount <= BigInt(0)) {
         return false;
@@ -734,6 +846,72 @@ const tokenTransfersTemplate: Template = {
           tokenType: 'TOKEN',
           transactionGasFee: 100n,
           transactionHash: '4fb2441210cbe87f5003abdfa86f03bafa54f789ed041feccbda0bd054297c4d',
+        },
+      ],
+    },
+    // STARKNET
+    {
+      params: {
+        network: 'STARKNET',
+        walletAddress: '0x309e6b209031362268d62d646a067365e6f6d6eb7f571b5212cbdfd5f26fe54',
+        contractAddress: '',
+      },
+      payload: 'https://jiti.indexing.co/networks/starknet/1149460',
+      output: [
+        {
+          amount: 0x1c286f74458fc6n,
+          blockNumber: 1149460,
+          from: '0x309e6b209031362268d62d646a067365e6f6d6eb7f571b5212cbdfd5f26fe54',
+          timestamp: '2025-02-13T17:36:52.000Z',
+          to: '0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 7925758505095110n,
+          transactionHash: '0x707203dba31f442ae9a5477e6a8906f3676effa0f1d3bb19cbbc14e1ddfe21',
+        },
+      ],
+    },
+    //SUI
+    {
+      params: {
+        network: 'SUI',
+        walletAddress: '0xfd0fb434d076e4cca300cf6534a5235b19ad184eedf49066726664ded42c6b5e',
+        contractAddress: '',
+      },
+      payload: 'https://jiti.indexing.co/networks/sui/112336044',
+      output: [
+        {
+          blockNumber: 112336044,
+          from: '0xfd0fb434d076e4cca300cf6534a5235b19ad184eedf49066726664ded42c6b5e',
+          to: undefined,
+          amount: 180772n,
+          token: '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
+          tokenType: 'NATIVE',
+          timestamp: '2025-02-13T23:10:54.529Z',
+          transactionHash: '336V3wP8cHDAnB1Aku3j6n9948i8FG5N1eVP6Ac68BaE',
+          transactionGasFee: -4165572n,
+        },
+      ],
+    },
+    // TON
+    {
+      params: {
+        network: 'TON',
+        walletAddress: 'EQAFukUyzmHjUvOYDOjNE-wbZFFl2FWas1rFJoh8IiTsWD40',
+        contractAddress: '',
+      },
+      payload: 'https://jiti.indexing.co/networks/ton/44919328',
+      output: [
+        {
+          blockNumber: 44919328,
+          from: 'EQAFukUyzmHjUvOYDOjNE-wbZFFl2FWas1rFJoh8IiTsWD40',
+          to: 'EQCFTFAHOU3vFt2NiZhRD5dwuS0k7GS59vIg3WfCKwfaQGW2',
+          amount: 10000000n,
+          token: 'TON',
+          tokenType: 'NATIVE',
+          timestamp: '2025-02-13T23:10:18.000Z',
+          transactionHash: 'Vh5cWr2uvCsdhoouBQ+EiUcF54os9oqvh8A/62EroQc=',
+          transactionGasFee: 2355233n,
         },
       ],
     },
