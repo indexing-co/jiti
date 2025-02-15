@@ -550,46 +550,47 @@ const tokenTransfersTemplate: Template = {
         break;
       }
 
-      case 'COSMOS': {
-        const typedBlock = block as {
-          block: { header: { height: string; time: string }; data: { txs?: string[] } };
-          block_id: { hash: string };
-        };
-
-        const blockNumber = Number(typedBlock.block.header.height);
-        const blockTimestamp = new Date(typedBlock.block.header.time).toISOString();
-        const blockHash = typedBlock.block_id.hash;
-
-        for (const txRaw of typedBlock.block.data.txs || []) {
-          const decoded = decodeTxRaw(new Uint8Array(Buffer.from(txRaw, 'base64')));
-          const transactionGasFee = BigInt(decoded.authInfo.fee?.amount?.[0]?.amount || '0');
-
-          const registry = new Registry(defaultStargateTypes);
-          for (const message of decoded.body.messages) {
-            if (
-              ['/ibc.applications.transfer.v1.MsgTransfer', '/cosmos.bank.v1beta1.MsgSend'].includes(message.typeUrl)
-            ) {
-              const decodedMsg = registry.decode(message);
-              transfers.push({
-                blockNumber,
-                from: decodedMsg.sender,
-                to: decodedMsg.receiver,
-                amount: BigInt(decodedMsg.token.amount),
-                token: decodedMsg.token.denom,
-                tokenType: 'NATIVE',
-                timestamp: blockTimestamp,
-                transactionHash: blockHash,
-                transactionGasFee,
-              });
-            }
-          }
-        }
-
-        break;
-      }
-
       // attempt to introspect data types
       default: {
+        // try Cosmos
+        if (block.block) {
+          const typedBlock = block as {
+            block: { header: { height: string; time: string }; data: { txs?: string[] } };
+            block_id: { hash: string };
+          };
+
+          const blockNumber = Number(typedBlock.block.header.height);
+          const blockTimestamp = new Date(typedBlock.block.header.time).toISOString();
+          const blockHash = typedBlock.block_id.hash;
+
+          for (const txRaw of typedBlock.block.data.txs || []) {
+            const decoded = decodeTxRaw(new Uint8Array(Buffer.from(txRaw, 'base64')));
+            const transactionGasFee = BigInt(decoded.authInfo.fee?.amount?.[0]?.amount || '0');
+
+            const registry = new Registry(defaultStargateTypes);
+            for (const message of decoded.body.messages) {
+              if (
+                ['/ibc.applications.transfer.v1.MsgTransfer', '/cosmos.bank.v1beta1.MsgSend'].includes(message.typeUrl)
+              ) {
+                const decodedMsg = registry.decode(message);
+                transfers.push({
+                  blockNumber,
+                  from: decodedMsg.sender,
+                  to: decodedMsg.receiver,
+                  amount: BigInt(decodedMsg.token.amount),
+                  token: decodedMsg.token.denom,
+                  tokenType: 'NATIVE',
+                  timestamp: blockTimestamp,
+                  transactionHash: blockHash,
+                  transactionGasFee,
+                });
+              }
+            }
+          }
+
+          break;
+        }
+
         // otherwise assume EVM
         for (const tx of block.transactions as any[]) {
           if (!tx.receipt) {
@@ -730,7 +731,7 @@ const tokenTransfersTemplate: Template = {
         break;
       }
     }
-    //console.log(transfers[0]);
+
     transfers = transfers.filter((txfer) => {
       if (txfer.amount <= BigInt(0)) {
         return false;
