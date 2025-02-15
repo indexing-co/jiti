@@ -1,5 +1,7 @@
 import { evmDecodeLogWithMetadata } from '../utils';
 import { Template } from '../types';
+import { decodeTxRaw, Registry } from '@cosmjs/proto-signing';
+import { defaultRegistryTypes as defaultStargateTypes, SigningStargateClient } from '@cosmjs/stargate';
 
 type NetworkTransfer = {
   amount: number | bigint;
@@ -121,6 +123,8 @@ const tokenTransfersTemplate: Template = {
       }
 
       case 'CARDANO': {
+        const blockTimestamp = new Date((block.timestamp as number) * 1000).toISOString();
+
         for (const tx of block.transactions as unknown[]) {
           const typedTx = tx as {
             transaction_identifier?: { hash?: string };
@@ -135,7 +139,6 @@ const tokenTransfersTemplate: Template = {
                 };
               };
             }[];
-            timestamp?: number;
           };
 
           if (!Array.isArray(typedTx.operations)) {
@@ -143,7 +146,6 @@ const tokenTransfersTemplate: Template = {
           }
 
           const transactionHash = typedTx.transaction_identifier?.hash || '';
-          const timestamp = typedTx.timestamp ? new Date(typedTx.timestamp).toISOString() : null;
 
           const inputs = typedTx.operations.filter((op) => op.type === 'input');
           const outputs = typedTx.operations.filter((op) => op.type === 'output');
@@ -175,7 +177,7 @@ const tokenTransfersTemplate: Template = {
               amount: absoluteValue < 0 ? -absoluteValue : absoluteValue,
               blockNumber: (block.block_identifier as { index: number }).index,
               from: fromAddress,
-              timestamp,
+              timestamp: blockTimestamp,
               to: out.account?.address || '',
               token: out.amount?.currency?.symbol?.toUpperCase() === 'ADA' ? null : out.amount?.currency?.symbol,
               tokenType: out.amount?.currency?.symbol?.toUpperCase() === 'ADA' ? 'NATIVE' : 'TOKEN',
@@ -227,7 +229,7 @@ const tokenTransfersTemplate: Template = {
             amount: parsedAmount,
             blockNumber: parseInt(block.ledger_index as string, 10),
             from: typedTx.Account ?? 'UNKNOWN',
-            timestamp: typedTx.date ? new Date((typedTx.date + 946684800) * 1000).toISOString() : null,
+            timestamp: block.close_time_iso ? (block.close_time_iso as string) : null,
             to: typedTx.Destination ?? 'UNKNOWN',
             token: tokenSymbol,
             tokenType: tokenType,
@@ -548,10 +550,46 @@ const tokenTransfersTemplate: Template = {
         break;
       }
 
+      case 'COSMOS': {
+        const typedBlock = block as {
+          block: { header: { height: string; time: string }; data: { txs?: string[] } };
+          block_id: { hash: string };
+        };
+
+        const blockNumber = Number(typedBlock.block.header.height);
+        const blockTimestamp = new Date(typedBlock.block.header.time).toISOString();
+        const blockHash = typedBlock.block_id.hash;
+
+        for (const txRaw of typedBlock.block.data.txs || []) {
+          const decoded = decodeTxRaw(new Uint8Array(Buffer.from(txRaw, 'base64')));
+          const transactionGasFee = BigInt(decoded.authInfo.fee?.amount?.[0]?.amount || '0');
+
+          const registry = new Registry(defaultStargateTypes);
+          for (const message of decoded.body.messages) {
+            if (
+              ['/ibc.applications.transfer.v1.MsgTransfer', '/cosmos.bank.v1beta1.MsgSend'].includes(message.typeUrl)
+            ) {
+              const decodedMsg = registry.decode(message);
+              transfers.push({
+                blockNumber,
+                from: decodedMsg.sender,
+                to: decodedMsg.receiver,
+                amount: BigInt(decodedMsg.token.amount),
+                token: decodedMsg.token.denom,
+                tokenType: 'NATIVE',
+                timestamp: blockTimestamp,
+                transactionHash: blockHash,
+                transactionGasFee,
+              });
+            }
+          }
+        }
+
+        break;
+      }
+
       // attempt to introspect data types
       default: {
-        // @TODO: COSMOS
-
         // otherwise assume EVM
         for (const tx of block.transactions as any[]) {
           if (!tx.receipt) {
@@ -794,7 +832,7 @@ const tokenTransfersTemplate: Template = {
           amount: 1110000n,
           blockNumber: 11443286,
           from: 'addr1qymdv285few5tyqvya86rl97r9e608njs37shfew6l2nn473aw2pcnrcvfwfgg2dnew99m4tjj0apsu7232w2euzwpysndh0h3',
-          timestamp: null,
+          timestamp: '+057068-01-19T05:23:20.000Z',
           to: 'addr1q9syxu908lef7r6rsvk0h7gsx3rxj22cuykgx2a2l4hcfd8e9y2e9vtv4w9dyej96w99wwj8hwgc273862lk6a3vt30qjjrund',
           token: null,
           tokenType: 'NATIVE',
@@ -817,7 +855,7 @@ const tokenTransfersTemplate: Template = {
           amount: 238n,
           blockNumber: 88104659,
           from: 'rMAGnTv4eMWktZnhKa5cHcDiY84ZiKUaQm',
-          timestamp: null,
+          timestamp: '2024-05-19T22:18:52Z',
           to: 'rUUgoiJmjTPEbxfZ4RsS9pVS9Kv813Wpui',
           token: 'XRP',
           tokenType: 'NATIVE',
@@ -912,6 +950,28 @@ const tokenTransfersTemplate: Template = {
           timestamp: '2025-02-13T23:10:18.000Z',
           transactionHash: 'Vh5cWr2uvCsdhoouBQ+EiUcF54os9oqvh8A/62EroQc=',
           transactionGasFee: 2355233n,
+        },
+      ],
+    },
+    // COSMOS
+    {
+      params: {
+        network: 'COSMOS',
+        walletAddress: 'cosmos1x4qvmtcfc02pklttfgxzdccxcsyzklrxavteyz',
+        contractAddress: 'ibc/F663521BF1836B00F5F177680F74BFB9A8B5654A694D0D2BC249E03CF2509013',
+      },
+      payload: 'https://jiti.indexing.co/networks/cosmos/24419691',
+      output: [
+        {
+          blockNumber: 24419691,
+          from: 'cosmos1x4qvmtcfc02pklttfgxzdccxcsyzklrxavteyz',
+          to: 'noble1x4qvmtcfc02pklttfgxzdccxcsyzklrx4073uv',
+          amount: 500000n,
+          token: 'ibc/F663521BF1836B00F5F177680F74BFB9A8B5654A694D0D2BC249E03CF2509013',
+          tokenType: 'NATIVE',
+          timestamp: '2025-02-14T21:48:22.809Z',
+          transactionHash: 'DF5FB086E60EE2ADA3A842751337E06A40696D7983CC1C038ADE236B36ED8AEB',
+          transactionGasFee: 4860n,
         },
       ],
     },
