@@ -48,7 +48,7 @@ const tokenTransfersTemplate: Template = {
       case 'APTOS_TESTNET': {
         for (const tx of block.transactions as Record<string, unknown>[]) {
           if (!tx?.events || !Array.isArray(tx.events)) {
-            break;
+            continue;
           }
 
           const timestamp = tx.timestamp ? new Date(parseInt(tx.timestamp as string) / 1000).toISOString() : null;
@@ -100,7 +100,7 @@ const tokenTransfersTemplate: Template = {
             vout[fromVout]?.scriptPubKey?.address ||
             vout[fromVout]?.scriptPubKey?.addresses?.[0];
           if (!fromAddress) {
-            break;
+            continue;
           }
 
           for (const v of vout) {
@@ -110,14 +110,12 @@ const tokenTransfersTemplate: Template = {
               from: fromAddress,
               timestamp,
               to: v.scriptPubKey.address || v.scriptPubKey.addresses?.[0],
-              transactionGasFee: BigInt((tx.fee as number) || 0) * BigInt(Math.pow(10, 8)),
+              transactionGasFee: BigInt(Math.round(((tx.fee as number) || 0) * Math.pow(10, 8))),
               transactionHash: tx.txid as string,
               token: null,
               tokenType: 'NATIVE',
             });
           }
-
-          break;
         }
         break;
       }
@@ -151,7 +149,7 @@ const tokenTransfersTemplate: Template = {
           const outputs = typedTx.operations.filter((op) => op.type === 'output');
 
           if (!inputs.length && !outputs.length) {
-            break;
+            continue;
           }
 
           const fromAddress = inputs[0]?.account?.address;
