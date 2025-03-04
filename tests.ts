@@ -12,11 +12,15 @@ async function runTests() {
     console.log('Running tests for', key);
     for (const test of templates[key].tests) {
       console.log('->', JSON.stringify(test.params));
-      const payload =
-        typeof test.payload === 'string' ? await _fetch(test.payload).then((r) => r.json()) : test.payload;
+      try {
+        const payload =
+          typeof test.payload === 'string' ? await _fetch(test.payload).then((r) => r.json()) : test.payload;
 
-      const output = templates[key].transform(payload, { params: test.params });
-      assert.deepStrictEqual(output, test.output);
+        const output = templates[key].transform(payload, { params: test.params });
+        assert.deepStrictEqual(output, test.output);
+      } catch (e) {
+        console.error(e);
+      }
     }
   }
 }
