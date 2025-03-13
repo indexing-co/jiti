@@ -281,6 +281,7 @@ const tokenTransfersTemplate: Template = {
                 if (diff === BigInt(0)) {
                   continue;
                 }
+                const isNegDiff = diff < 0;
                 if (diff < 0) {
                   diff = -diff;
                 }
@@ -298,10 +299,10 @@ const tokenTransfersTemplate: Template = {
                   tokenType: 'TOKEN',
                 };
                 if (transfersByKey[key]) {
-                  if (diff > 0) {
-                    delete txfer.from;
-                  } else {
+                  if (isNegDiff) {
                     delete txfer.to;
+                  } else {
+                    delete txfer.from;
                   }
                 }
                 transfersByKey[key] = Object.assign(transfersByKey[key] || {}, txfer);
@@ -311,6 +312,7 @@ const tokenTransfersTemplate: Template = {
 
             if (!matched) {
               let diff = BigInt(post.uiTokenAmount.amount);
+              const isNegDiff = diff < 0;
               if (diff < 0) {
                 diff = -diff;
               }
@@ -326,7 +328,13 @@ const tokenTransfersTemplate: Template = {
                 transactionGasFee: txFee,
                 transactionHash: txHash,
               };
-              delete txfer.from;
+              if (transfersByKey[key]) {
+                if (isNegDiff) {
+                  delete txfer.to;
+                } else {
+                  delete txfer.from;
+                }
+              }
               transfersByKey[key] = Object.assign(transfersByKey[key] || {}, txfer);
             }
           }
@@ -952,6 +960,7 @@ const tokenTransfersTemplate: Template = {
         },
       ],
     },
+
     // COSMOS
     {
       params: {
@@ -971,6 +980,82 @@ const tokenTransfersTemplate: Template = {
           timestamp: '2025-02-14T21:48:22.809Z',
           transactionHash: 'DF5FB086E60EE2ADA3A842751337E06A40696D7983CC1C038ADE236B36ED8AEB',
           transactionGasFee: 4860n,
+        },
+      ],
+    },
+
+    // SOLANA
+    {
+      params: {
+        network: 'SOLANA',
+        walletAddress: 'D89hHJT5Aqyx1trP6EnGY9jJUB3whgnq3aUvvCqedvzf',
+        contractAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      },
+      payload: 'https://jiti.indexing.co/networks/solana/326286476',
+      output: [
+        {
+          amount: 3000350n,
+          blockNumber: 304546603,
+          from: 'D89hHJT5Aqyx1trP6EnGY9jJUB3whgnq3aUvvCqedvzf',
+          timestamp: '2025-03-12T14:42:16.000Z',
+          to: 'HTd5J9YhYnN1nwCAQiykpNBjoDrgtPVUcpk9TBPMCV4b',
+          transactionGasFee: 105000n,
+          transactionHash: '3HKaqRRPyA2NHvmf3xzJpgTemxXcextCRmgwWfHpKhDqDbJSqCdy8GtH5zG8tHQU2Dcznf7JgMP7sCLQSoNPw2E5',
+          token: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+          tokenType: 'TOKEN',
+        },
+      ],
+    },
+    {
+      params: {
+        network: 'SOLANA',
+        walletAddress: '5u3gUxSsiqddQf1QhRDRQqDaFe9f5S3pyVkVWy77gB85',
+        contractAddress: '',
+      },
+      payload: 'https://jiti.indexing.co/networks/solana/291562718',
+      output: [
+        {
+          amount: 239999n,
+          blockNumber: 270452291,
+          from: '5u3gUxSsiqddQf1QhRDRQqDaFe9f5S3pyVkVWy77gB85',
+          timestamp: '2024-09-23T16:45:56.000Z',
+          to: 'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 45000n,
+          transactionHash: '2TKq9VXjQocvyQGraxqRjyF8iASRPCmjJcGXkxYQbTknjFTToVB2rRSLMFCi5VwBx9uJ2fAN1YNt4Wr8TUVRuoMi',
+        },
+        {
+          amount: 1n,
+          blockNumber: 270452291,
+          from: '5u3gUxSsiqddQf1QhRDRQqDaFe9f5S3pyVkVWy77gB85',
+          timestamp: '2024-09-23T16:45:56.000Z',
+          to: '8MCjBNEBEyT5uAnDBupUxQ8eiKHJcf4vh546g4uM7cjF',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 45000n,
+          transactionHash: '2TKq9VXjQocvyQGraxqRjyF8iASRPCmjJcGXkxYQbTknjFTToVB2rRSLMFCi5VwBx9uJ2fAN1YNt4Wr8TUVRuoMi',
+        },
+      ],
+    },
+    {
+      params: {
+        network: 'SOLANA',
+        walletAddress: '5cuy7pMhTPhVZN9xuhgSbykRb986siGJb6vnEtkuBrSU',
+        contractAddress: '27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4',
+      },
+      payload: 'https://jiti.indexing.co/networks/solana/325076237',
+      output: [
+        {
+          amount: 14216129n,
+          blockNumber: 303338729,
+          from: '8KbrpeSRYXYjWSSdG7gE1tR7Go8MmKKxKaei1gGc4U7Q',
+          timestamp: '2025-03-07T01:16:59.000Z',
+          to: '5cuy7pMhTPhVZN9xuhgSbykRb986siGJb6vnEtkuBrSU',
+          transactionGasFee: 353096n,
+          transactionHash: '54qvCYcmUvPX6K3KuKG1nGRJWq6696LxwPNsx7DX5rcRsLbFntGEuWCjHTVc5wMcUZhKs1MuXeqpuDswrvNjETNQ',
+          token: '27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4',
+          tokenType: 'TOKEN',
         },
       ],
     },
