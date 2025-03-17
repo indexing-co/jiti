@@ -556,6 +556,53 @@ const tokenTransfersTemplate: Template = {
         break;
       }
 
+      case 'ASTAR':
+      case 'ENJIN':
+      case 'KUSAMA':
+      case 'POLKADOT':
+      case 'BITTENSOR': {
+        const typedBlock = block as {
+          blockNumber: number;
+          blockHash: string;
+          header: { number: string };
+          extrinsics: {
+            method: string;
+            signer: string;
+            args: any[];
+            hash: string;
+          }[];
+        };
+      
+        const blockNumber = typedBlock.blockNumber;
+        const blockHash = typedBlock.blockHash;
+      
+        const timestampExtrinsic = typedBlock.extrinsics.find(ex => ex.method === 'timestamp.set');
+        const blockTimestamp = timestampExtrinsic
+          ? new Date(Number(timestampExtrinsic.args[0].toString().replace(/,/g, ''))).toISOString()
+          : new Date().toISOString();
+      
+        for (const extrinsic of typedBlock.extrinsics) {
+          if (extrinsic.method === 'balances.transferKeepAlive') {
+            const from = extrinsic.signer;
+            const to = (extrinsic.args[0] as { Id?: string })?.Id || '';
+            const amount = BigInt((extrinsic.args[1] as string).replace(/,/g, ''));
+      
+            transfers.push({
+              amount,
+              blockNumber,
+              from,
+              to,
+              token: null,
+              tokenType: 'NATIVE',
+              timestamp: blockTimestamp,
+              transactionGasFee: 0n,
+              transactionHash: blockHash,
+            });
+          }
+        }
+        break;
+      }
+
       // attempt to introspect data types
       default: {
         // try Cosmos
@@ -755,7 +802,7 @@ const tokenTransfersTemplate: Template = {
   },
 
   tests: [
-    // APTOS
+   // APTOS
     {
       params: {
         network: 'APTOS',
@@ -798,6 +845,29 @@ const tokenTransfersTemplate: Template = {
           tokenType: 'TOKEN',
           transactionGasFee: 1192354854229n,
           transactionHash: '0x69c9b12ccbe2d4f2f1dfc7c4a8557fc099fc5df276424417815acbc79a06fd56',
+        },
+      ],
+    },
+
+    //BITTENSOR
+    {
+      params: {
+        network: 'BITTENSOR',
+        walletAddress: '5G4TazaYLvMd8g7sYCd7Z6GpnFM5Kw4nt5tsydkw7gu3BnLC',
+        contractAddress: '',
+      },
+      payload: 'https://jiti.indexing.co/networks/bittensor/5149839',
+      output: [
+        {
+          amount: 3210000000n,
+          blockNumber: 5149839,
+          from: '5G4TazaYLvMd8g7sYCd7Z6GpnFM5Kw4nt5tsydkw7gu3BnLC',
+          timestamp: '2025-03-17T18:41:24.000Z',
+          to: '5CWgT5vMteM2fUabZ7oPYHPmXi6xPHKUxd6wEWnUvFuxsdJX',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 0n,
+          transactionHash: '0x26eb4c29a49a67033cdd6eb1ef0887faeb764836b0cf0322716e7f783248236e',
         },
       ],
     },
