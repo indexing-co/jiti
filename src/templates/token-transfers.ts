@@ -659,6 +659,63 @@ const tokenTransfersTemplate: Template = {
         break;
       }
 
+      case 'FILECOIN': {
+        const typedBlock = block as {
+          Height: number;
+          Blocks: Array<{ ParentBaseFee: string; Timestamp: number }>;
+          messages: Array<{
+            blockMessages: {
+              BlsMessages?: Array<unknown>;
+              SecpkMessages?: Array<{
+                Message: {
+                  From: string;
+                  To: string;
+                  Value: string;
+                  GasFeeCap: string;
+                  GasPremium: string;
+                };
+                CID: { '/': string };
+              }>;
+            };
+          }>;
+          receipts: Array<{ GasUsed: number }>;
+        };
+
+        const blockNumber = typedBlock.Height;
+        const blockTimestamp = new Date(typedBlock.Blocks[0].Timestamp * 1000).toISOString();
+        const parentBaseFee = BigInt(typedBlock.Blocks[0].ParentBaseFee);
+
+        let receiptIndex = 0;
+
+        for (const msgGroup of typedBlock.messages) {
+          const secpkMessages = msgGroup.blockMessages.SecpkMessages || [];
+
+          for (const msg of secpkMessages) {
+            const receipt = typedBlock.receipts[receiptIndex++];
+            const gasUsed = BigInt(receipt.GasUsed);
+            const gasFeeCap = BigInt(msg.Message.GasFeeCap);
+            const gasPremium = BigInt(msg.Message.GasPremium);
+            const baseFeeBurn = gasUsed * parentBaseFee;
+            const minerTip =
+              gasUsed * (gasPremium < gasFeeCap - parentBaseFee ? gasPremium : gasFeeCap - parentBaseFee);
+            const transactionGasFee = baseFeeBurn + minerTip;
+
+            transfers.push({
+              amount: BigInt(msg.Message.Value),
+              blockNumber,
+              from: msg.Message.From,
+              to: msg.Message.To,
+              token: null,
+              tokenType: 'NATIVE',
+              timestamp: blockTimestamp,
+              transactionGasFee,
+              transactionHash: msg.CID['/'],
+            });
+          }
+        }
+        break;
+      }
+
       // attempt to introspect data types
       default: {
         // try Cosmos
