@@ -572,21 +572,21 @@ const tokenTransfersTemplate: Template = {
             hash: string;
           }[];
         };
-      
+
         const blockNumber = typedBlock.blockNumber;
         const blockHash = typedBlock.blockHash;
-      
-        const timestampExtrinsic = typedBlock.extrinsics.find(ex => ex.method === 'timestamp.set');
+
+        const timestampExtrinsic = typedBlock.extrinsics.find((ex) => ex.method === 'timestamp.set');
         const blockTimestamp = timestampExtrinsic
           ? new Date(Number(timestampExtrinsic.args[0].toString().replace(/,/g, ''))).toISOString()
           : new Date().toISOString();
-      
+
         for (const extrinsic of typedBlock.extrinsics) {
           if (extrinsic.method === 'balances.transferKeepAlive') {
             const from = extrinsic.signer;
             const to = (extrinsic.args[0] as { Id?: string })?.Id || '';
             const amount = BigInt((extrinsic.args[1] as string).replace(/,/g, ''));
-      
+
             transfers.push({
               amount,
               blockNumber,
@@ -597,6 +597,63 @@ const tokenTransfersTemplate: Template = {
               timestamp: blockTimestamp,
               transactionGasFee: 0n,
               transactionHash: blockHash,
+            });
+          }
+        }
+        break;
+      }
+
+      case 'FILECOIN': {
+        const typedBlock = block as {
+          Height: number;
+          Blocks: Array<{ ParentBaseFee: string; Timestamp: number }>;
+          messages: Array<{
+            blockMessages: {
+              BlsMessages?: Array<unknown>;
+              SecpkMessages?: Array<{
+                Message: {
+                  From: string;
+                  To: string;
+                  Value: string;
+                  GasFeeCap: string;
+                  GasPremium: string;
+                };
+                CID: { '/': string };
+              }>;
+            };
+          }>;
+          receipts: Array<{ GasUsed: number }>;
+        };
+
+        const blockNumber = typedBlock.Height;
+        const blockTimestamp = new Date(typedBlock.Blocks[0].Timestamp * 1000).toISOString();
+        const parentBaseFee = BigInt(typedBlock.Blocks[0].ParentBaseFee);
+
+        let receiptIndex = 0;
+
+        for (const msgGroup of typedBlock.messages) {
+          const secpkMessages = msgGroup.blockMessages.SecpkMessages || [];
+
+          for (const msg of secpkMessages) {
+            const receipt = typedBlock.receipts[receiptIndex++];
+            const gasUsed = BigInt(receipt.GasUsed);
+            const gasFeeCap = BigInt(msg.Message.GasFeeCap);
+            const gasPremium = BigInt(msg.Message.GasPremium);
+            const baseFeeBurn = gasUsed * parentBaseFee;
+            const minerTip =
+              gasUsed * (gasPremium < gasFeeCap - parentBaseFee ? gasPremium : gasFeeCap - parentBaseFee);
+            const transactionGasFee = baseFeeBurn + minerTip;
+
+            transfers.push({
+              amount: BigInt(msg.Message.Value),
+              blockNumber,
+              from: msg.Message.From,
+              to: msg.Message.To,
+              token: null,
+              tokenType: 'NATIVE',
+              timestamp: blockTimestamp,
+              transactionGasFee,
+              transactionHash: msg.CID['/'],
             });
           }
         }
@@ -785,6 +842,8 @@ const tokenTransfersTemplate: Template = {
       }
     }
 
+    const seenTransfers = new Set<string>();
+
     transfers = transfers.filter((txfer) => {
       if (txfer.amount <= BigInt(0)) {
         return false;
@@ -795,6 +854,15 @@ const tokenTransfersTemplate: Template = {
       if (_ctx.params.walletAddress && ![txfer.from, txfer.to].includes(_ctx.params.walletAddress as string)) {
         return false;
       }
+
+      const key = `${txfer.transactionHash}-${txfer.from}-${txfer.to}-${txfer.amount}`;
+
+      if (seenTransfers.has(key)) {
+        return false;
+      }
+
+      seenTransfers.add(key);
+
       return true;
     });
 
@@ -802,7 +870,29 @@ const tokenTransfersTemplate: Template = {
   },
 
   tests: [
-   // APTOS
+    //FILECOIN
+    {
+      params: {
+        network: 'FILECOIN',
+        walletAddress: 'f1e3aa3z6gkaqxxwmbbna5gf2frggswwjaeavx7bq',
+        contractAddress: 'f1bqdligg7ipuiizvmdn7ijobhbkwaieh6z6lah5y',
+      },
+      payload: 'https://jiti.indexing.co/networks/filecoin/4818438',
+      output: [
+        {
+          amount: 7896300000000000000n,
+          blockNumber: 4818438,
+          from: 'f1e3aa3z6gkaqxxwmbbna5gf2frggswwjaeavx7bq',
+          timestamp: '2025-03-24T23:39:00.000Z',
+          to: 'f1bqdligg7ipuiizvmdn7ijobhbkwaieh6z6lah5y',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 1592498365133760n,
+          transactionHash: 'bafy2bzacecxud3tayyq3caagjej5srufcx5fufjuqkz3ltgfty27wdsrmqeew',
+        },
+      ],
+    },
+    // APTOS
     {
       params: {
         network: 'APTOS',
