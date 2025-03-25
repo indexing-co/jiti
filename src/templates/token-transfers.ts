@@ -855,7 +855,7 @@ const tokenTransfersTemplate: Template = {
         return false;
       }
 
-      const key = `${txfer.transactionHash}-${txfer.from}-${txfer.to}-${txfer.amount}`;
+      const key = `${txfer.transactionHash}-${txfer.from}-${txfer.to}-${txfer.amount}-${txfer.token}`;
 
       if (seenTransfers.has(key)) {
         return false;
