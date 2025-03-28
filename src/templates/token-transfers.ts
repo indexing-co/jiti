@@ -574,7 +574,6 @@ const tokenTransfersTemplate: Template = {
         };
 
         const blockNumber = typedBlock.blockNumber;
-        const blockHash = typedBlock.blockHash;
 
         const timestampExtrinsic = typedBlock.extrinsics.find((ex) => ex.method === 'timestamp.set');
         const blockTimestamp = timestampExtrinsic
@@ -582,7 +581,7 @@ const tokenTransfersTemplate: Template = {
           : new Date().toISOString();
 
         for (const extrinsic of typedBlock.extrinsics) {
-          if (extrinsic.method === 'balances.transferKeepAlive') {
+          if (['balances.transfer', 'balances.transferKeepAlive'].includes(extrinsic.method)) {
             const from = extrinsic.signer;
             const to = (extrinsic.args[0] as { Id?: string })?.Id || '';
             const amount = BigInt((extrinsic.args[1] as string).replace(/,/g, ''));
@@ -596,7 +595,7 @@ const tokenTransfersTemplate: Template = {
               tokenType: 'NATIVE',
               timestamp: blockTimestamp,
               transactionGasFee: 0n,
-              transactionHash: blockHash,
+              transactionHash: extrinsic.hash,
             });
           }
         }
@@ -870,28 +869,6 @@ const tokenTransfersTemplate: Template = {
   },
 
   tests: [
-    //FILECOIN
-    {
-      params: {
-        network: 'FILECOIN',
-        walletAddress: 'f1e3aa3z6gkaqxxwmbbna5gf2frggswwjaeavx7bq',
-        contractAddress: 'f1bqdligg7ipuiizvmdn7ijobhbkwaieh6z6lah5y',
-      },
-      payload: 'https://jiti.indexing.co/networks/filecoin/4818438',
-      output: [
-        {
-          amount: 7896300000000000000n,
-          blockNumber: 4818438,
-          from: 'f1e3aa3z6gkaqxxwmbbna5gf2frggswwjaeavx7bq',
-          timestamp: '2025-03-24T23:39:00.000Z',
-          to: 'f1bqdligg7ipuiizvmdn7ijobhbkwaieh6z6lah5y',
-          token: null,
-          tokenType: 'NATIVE',
-          transactionGasFee: 1592498365133760n,
-          transactionHash: 'bafy2bzacecxud3tayyq3caagjej5srufcx5fufjuqkz3ltgfty27wdsrmqeew',
-        },
-      ],
-    },
     // APTOS
     {
       params: {
@@ -939,25 +916,49 @@ const tokenTransfersTemplate: Template = {
       ],
     },
 
-    //BITTENSOR
+    // BITTENSOR
     {
       params: {
         network: 'BITTENSOR',
-        walletAddress: '5G4TazaYLvMd8g7sYCd7Z6GpnFM5Kw4nt5tsydkw7gu3BnLC',
+        walletAddress: '5G6WmJ4mym9oSQzUF5tr7LvsNMvH5vWtutZM8vMvRv1Wwy6J',
         contractAddress: '',
       },
-      payload: 'https://jiti.indexing.co/networks/bittensor/5149839',
+      payload: 'https://jiti.indexing.co/networks/bittensor/2652896',
       output: [
         {
-          amount: 3210000000n,
-          blockNumber: 5149839,
-          from: '5G4TazaYLvMd8g7sYCd7Z6GpnFM5Kw4nt5tsydkw7gu3BnLC',
-          timestamp: '2025-03-17T18:41:24.000Z',
-          to: '5CWgT5vMteM2fUabZ7oPYHPmXi6xPHKUxd6wEWnUvFuxsdJX',
+          amount: 2154999850n,
+          blockNumber: 2652896,
+          from: '5G6WmJ4mym9oSQzUF5tr7LvsNMvH5vWtutZM8vMvRv1Wwy6J',
+          to: '5CFwmfLfL1Z6vXU6hgGksh6irDFpcVXaTTNRoqDGMyHrDKK1',
           token: null,
           tokenType: 'NATIVE',
+          timestamp: '2024-03-28T12:53:36.001Z',
           transactionGasFee: 0n,
-          transactionHash: '0x26eb4c29a49a67033cdd6eb1ef0887faeb764836b0cf0322716e7f783248236e',
+          transactionHash: '0x9ea55a8f40b8d7704f27964155476ab9c744ec2ef2b1f431ad0e05a3a6f3c1ab',
+        },
+      ],
+    },
+
+    // CARDANO
+    {
+      params: {
+        network: 'CARDANO',
+        walletAddress:
+          'addr1q9syxu908lef7r6rsvk0h7gsx3rxj22cuykgx2a2l4hcfd8e9y2e9vtv4w9dyej96w99wwj8hwgc273862lk6a3vt30qjjrund',
+        contractAddress: '',
+      },
+      payload: 'https://jiti.indexing.co/networks/cardano/11443286',
+      output: [
+        {
+          amount: 1110000n,
+          blockNumber: 11443286,
+          from: 'addr1qymdv285few5tyqvya86rl97r9e608njs37shfew6l2nn473aw2pcnrcvfwfgg2dnew99m4tjj0apsu7232w2euzwpysndh0h3',
+          timestamp: '+057068-01-19T05:23:20.000Z',
+          to: 'addr1q9syxu908lef7r6rsvk0h7gsx3rxj22cuykgx2a2l4hcfd8e9y2e9vtv4w9dyej96w99wwj8hwgc273862lk6a3vt30qjjrund',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 174257n,
+          transactionHash: '261c42ba9124f55d8e169ebb692cd3759d796a54369acb316ee449b546e79309',
         },
       ],
     },
@@ -985,26 +986,25 @@ const tokenTransfersTemplate: Template = {
       ],
     },
 
-    // CARDANO
+    //FILECOIN
     {
       params: {
-        network: 'CARDANO',
-        walletAddress:
-          'addr1q9syxu908lef7r6rsvk0h7gsx3rxj22cuykgx2a2l4hcfd8e9y2e9vtv4w9dyej96w99wwj8hwgc273862lk6a3vt30qjjrund',
-        contractAddress: '',
+        network: 'FILECOIN',
+        walletAddress: 'f1e3aa3z6gkaqxxwmbbna5gf2frggswwjaeavx7bq',
+        contractAddress: 'f1bqdligg7ipuiizvmdn7ijobhbkwaieh6z6lah5y',
       },
-      payload: 'https://jiti.indexing.co/networks/cardano/11443286',
+      payload: 'https://jiti.indexing.co/networks/filecoin/4818438',
       output: [
         {
-          amount: 1110000n,
-          blockNumber: 11443286,
-          from: 'addr1qymdv285few5tyqvya86rl97r9e608njs37shfew6l2nn473aw2pcnrcvfwfgg2dnew99m4tjj0apsu7232w2euzwpysndh0h3',
-          timestamp: '+057068-01-19T05:23:20.000Z',
-          to: 'addr1q9syxu908lef7r6rsvk0h7gsx3rxj22cuykgx2a2l4hcfd8e9y2e9vtv4w9dyej96w99wwj8hwgc273862lk6a3vt30qjjrund',
+          amount: 7896300000000000000n,
+          blockNumber: 4818438,
+          from: 'f1e3aa3z6gkaqxxwmbbna5gf2frggswwjaeavx7bq',
+          timestamp: '2025-03-24T23:39:00.000Z',
+          to: 'f1bqdligg7ipuiizvmdn7ijobhbkwaieh6z6lah5y',
           token: null,
           tokenType: 'NATIVE',
-          transactionGasFee: 174257n,
-          transactionHash: '261c42ba9124f55d8e169ebb692cd3759d796a54369acb316ee449b546e79309',
+          transactionGasFee: 1592498365133760n,
+          transactionHash: 'bafy2bzacecxud3tayyq3caagjej5srufcx5fufjuqkz3ltgfty27wdsrmqeew',
         },
       ],
     },
