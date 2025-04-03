@@ -51,33 +51,79 @@ const tokenTransfersTemplate: Template = {
             continue;
           }
 
-          const timestamp = tx.timestamp ? new Date(parseInt(tx.timestamp as string) / 1000).toISOString() : null;
-          const txfersByKey: Record<string, Record<string, string>> = {};
+          const timestamp = tx.timestamp ? new Date(parseInt(tx.timestamp as string, 10) / 1_000).toISOString() : null;
+
+          const transfersByKey: Record<
+            string,
+            {
+              amount: string;
+              tokenAddress?: string;
+              from?: string;
+              to?: string;
+            }
+          > = {};
 
           for (const evt of tx.events as Record<string, unknown>[]) {
-            if (['0x1::coin::WithdrawEvent', '0x1::coin::DepositEvent'].includes(evt.type as string)) {
-              const amount = (evt.data as Record<string, string>)?.amount;
-              const key = `0x1-${amount}`;
-              txfersByKey[key] ||= { amount, tokenAddress: null };
-              if ((evt.type as string).endsWith('WithdrawEvent')) {
-                txfersByKey[key].from = (evt.guid as Record<string, string>)?.account_address;
+            const evtType = evt.type as string;
+            if (
+              evtType === '0x1::coin::WithdrawEvent' ||
+              evtType === '0x1::coin::DepositEvent' ||
+              evtType === '0x1::fungible_asset::Withdraw' ||
+              evtType === '0x1::fungible_asset::Deposit'
+            ) {
+              const data = evt.data as Record<string, any>;
+
+              const amount = data.amount as string;
+
+              const tokenAddr = (data.store as string) || '0x1::aptos_coin::AptosCoin';
+
+              const accountAddr = (evt.guid as { account_address?: string })?.account_address || '';
+
+              const compositeKey = `${tx.hash}-${tokenAddr}-${amount}`;
+
+              if (!transfersByKey[compositeKey]) {
+                transfersByKey[compositeKey] = {
+                  amount,
+                  tokenAddress: tokenAddr,
+                };
+              }
+
+              if (evtType.endsWith('Withdraw') || evtType.endsWith('WithdrawEvent')) {
+                transfersByKey[compositeKey].from = accountAddr;
               } else {
-                txfersByKey[key].to = (evt.guid as Record<string, string>)?.account_address;
+                transfersByKey[compositeKey].to = accountAddr;
               }
             }
           }
 
-          for (const partial of Object.values(txfersByKey)) {
-            if (!partial.from || !partial.to) continue;
+          for (const partial of Object.values(transfersByKey)) {
+            if (!partial.from || !partial.to) {
+              continue;
+            }
+
+            const fromAddr = partial.from.length < 66 ? `0x0${partial.from.slice(2)}` : partial.from;
+            const toAddr = partial.to.length < 66 ? `0x0${partial.to.slice(2)}` : partial.to;
+
+            let finalToken: string | null = null;
+            let finalTokenType: 'NATIVE' | 'TOKEN' | 'NFT' = 'TOKEN';
+
+            if (partial.tokenAddress?.toLowerCase().includes('aptos_coin')) {
+              finalToken = null;
+            } else {
+              finalToken = partial.tokenAddress?.toLowerCase();
+            }
+
+            const gasUsed = BigInt((tx.gas_used as string) || '0');
+
             transfers.push({
               amount: BigInt(partial.amount),
-              blockNumber: parseInt(block.block_height as string),
-              from: partial.from?.length < 66 ? `0x0${partial.from?.slice(2)}` : partial.from,
+              blockNumber: parseInt(block.block_height as string, 10),
+              from: fromAddr,
+              to: toAddr,
               timestamp,
-              to: partial.to?.length < 66 ? `0x0${partial.to?.slice(2)}` : partial.to,
-              token: partial.tokenAddress,
-              tokenType: 'NATIVE',
-              transactionGasFee: BigInt(tx.gas_used as string),
+              token: finalToken,
+              tokenType: finalTokenType,
+              transactionGasFee: gasUsed,
               transactionHash: tx.hash as string,
             });
           }
@@ -930,21 +976,55 @@ const tokenTransfersTemplate: Template = {
     {
       params: {
         network: 'APTOS',
-        walletAddress: '0x04b2b6bc8c2c5794c51607c962f482593f9b5ea09373a8ce249a1f799cca7a1e',
-        contractAddress: '0x1',
+        walletAddress: '0x5bd7de5c56d5691f32ea86c973c73fec7b1445e59736c97158020018c080bb00',
+        contractAddress: '0x3b5d2e7e8da86903beb19d5a7135764aac812e18af193895d75f3a8f6a066cb0',
       },
       payload: 'https://jiti.indexing.co/networks/aptos/297956660',
       output: [
         {
+          amount: 1611839920n,
+          blockNumber: 297956660,
+          from: '0x5bd7de5c56d5691f32ea86c973c73fec7b1445e59736c97158020018c080bb00',
+          to: '0x3b5d2e7e8da86903beb19d5a7135764aac812e18af193895d75f3a8f6a066cb0',
+          timestamp: '2025-03-02T21:07:06.002Z',
+          token: null,
+          tokenType: 'TOKEN',
+          transactionGasFee: 13n,
+          transactionHash: '0xfbdef795d11df124cca264f3370b09fb04fb1c1d24a2d2e1df0693c096a76d13',
+        },
+        {
           amount: 1502138836n,
           blockNumber: 297956660,
           from: '0x5bd7de5c56d5691f32ea86c973c73fec7b1445e59736c97158020018c080bb00',
-          timestamp: '2025-03-02T21:07:06.002Z',
           to: '0x04b2b6bc8c2c5794c51607c962f482593f9b5ea09373a8ce249a1f799cca7a1e',
+          timestamp: '2025-03-02T21:07:06.002Z',
           token: null,
-          tokenType: 'NATIVE',
+          tokenType: 'TOKEN',
           transactionGasFee: 13n,
           transactionHash: '0xfbdef795d11df124cca264f3370b09fb04fb1c1d24a2d2e1df0693c096a76d13',
+        },
+      ],
+    },
+
+    // APTOS
+    {
+      params: {
+        network: 'APTOS',
+        walletAddress: '0xb22c2354c2f2f02947d7690e701dadcdf33bd6e4bb070d9b58a47e3ff5b73a4f',
+        contractAddress: '0x34ae9c81d10616525ce942e73953752bb1893dc15c9515c1e0f5444785499934',
+      },
+      payload: 'https://jiti.indexing.co/networks/aptos/314632074',
+      output: [
+        {
+          amount: 20000n,
+          blockNumber: 314632074,
+          from: '0xb22c2354c2f2f02947d7690e701dadcdf33bd6e4bb070d9b58a47e3ff5b73a4f',
+          timestamp: '2025-04-01T19:11:48.409Z',
+          to: '0x34ae9c81d10616525ce942e73953752bb1893dc15c9515c1e0f5444785499934',
+          token: null,
+          tokenType: 'TOKEN',
+          transactionGasFee: 17n,
+          transactionHash: '0x6c6c52ec512e247dbde89b02b2cef2fdd4ea0f166628c76e4b6e6d19dc2c7940',
         },
       ],
     },
@@ -1066,6 +1146,29 @@ const tokenTransfersTemplate: Template = {
       ],
     },
 
+    //FILECOIN
+    {
+      params: {
+        network: 'FILECOIN',
+        walletAddress: 'f1e3aa3z6gkaqxxwmbbna5gf2frggswwjaeavx7bq',
+        contractAddress: 'f1bqdligg7ipuiizvmdn7ijobhbkwaieh6z6lah5y',
+      },
+      payload: 'https://jiti.indexing.co/networks/filecoin/4818438',
+      output: [
+        {
+          amount: 7896300000000000000n,
+          blockNumber: 4818438,
+          from: 'f1e3aa3z6gkaqxxwmbbna5gf2frggswwjaeavx7bq',
+          timestamp: '2025-03-24T23:39:00.000Z',
+          to: 'f1bqdligg7ipuiizvmdn7ijobhbkwaieh6z6lah5y',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 1592498365133760n,
+          transactionHash: 'bafy2bzacecxud3tayyq3caagjej5srufcx5fufjuqkz3ltgfty27wdsrmqeew',
+        },
+      ],
+    },
+
     // RIPPLE
     {
       params: {
@@ -1133,7 +1236,7 @@ const tokenTransfersTemplate: Template = {
         },
       ],
     },
-    //SUI
+    // SUI
     {
       params: {
         network: 'SUI',
