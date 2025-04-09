@@ -1,7 +1,8 @@
 import { evmDecodeLogWithMetadata } from '../utils';
 import { Template } from '../types';
 import { decodeTxRaw, Registry } from '@cosmjs/proto-signing';
-import { defaultRegistryTypes as defaultStargateTypes, SigningStargateClient } from '@cosmjs/stargate';
+import { defaultRegistryTypes as defaultStargateTypes } from '@cosmjs/stargate';
+import { sha256 } from 'viem';
 
 type NetworkTransfer = {
   amount: number | bigint;
@@ -608,7 +609,6 @@ const tokenTransfersTemplate: Template = {
       case 'BITTENSOR': {
         const typedBlock = block as {
           blockNumber: number;
-          blockHash: string;
           header: { number: string };
           extrinsics: {
             method: string;
@@ -772,10 +772,10 @@ const tokenTransfersTemplate: Template = {
 
           const blockNumber = Number(typedBlock.block.header.height);
           const blockTimestamp = new Date(typedBlock.block.header.time).toISOString();
-          const blockHash = typedBlock.block_id.hash;
 
           for (const txRaw of typedBlock.block.data.txs || []) {
             const decoded = decodeTxRaw(new Uint8Array(Buffer.from(txRaw, 'base64')));
+            const txHash = sha256(new Uint8Array(Buffer.from(txRaw, 'base64')));
             const transactionGasFee = BigInt(decoded.authInfo.fee?.amount?.[0]?.amount || '0');
 
             const registry = new Registry(defaultStargateTypes);
@@ -792,7 +792,7 @@ const tokenTransfersTemplate: Template = {
                   token: decodedMsg.token.denom,
                   tokenType: 'NATIVE',
                   timestamp: blockTimestamp,
-                  transactionHash: blockHash,
+                  transactionHash: txHash.slice(2).toUpperCase(),
                   transactionGasFee,
                 });
               }
@@ -1098,6 +1098,29 @@ const tokenTransfersTemplate: Template = {
       ],
     },
 
+    // COSMOS
+    {
+      params: {
+        network: 'COSMOS',
+        walletAddress: 'cosmos1x4qvmtcfc02pklttfgxzdccxcsyzklrxavteyz',
+        contractAddress: 'ibc/F663521BF1836B00F5F177680F74BFB9A8B5654A694D0D2BC249E03CF2509013',
+      },
+      payload: 'https://jiti.indexing.co/networks/cosmos/24419691',
+      output: [
+        {
+          blockNumber: 24419691,
+          from: 'cosmos1x4qvmtcfc02pklttfgxzdccxcsyzklrxavteyz',
+          to: 'noble1x4qvmtcfc02pklttfgxzdccxcsyzklrx4073uv',
+          amount: 500000n,
+          token: 'ibc/F663521BF1836B00F5F177680F74BFB9A8B5654A694D0D2BC249E03CF2509013',
+          tokenType: 'NATIVE',
+          timestamp: '2025-02-14T21:48:22.809Z',
+          transactionHash: '963D4D7BB59C1280F58A7ECA2F1934E2AA005109A989193C815C7B98EDCD7445',
+          transactionGasFee: 4860n,
+        },
+      ],
+    },
+
     // DOGECOIN
     {
       params: {
@@ -1121,30 +1144,7 @@ const tokenTransfersTemplate: Template = {
       ],
     },
 
-    //FILECOIN
-    {
-      params: {
-        network: 'FILECOIN',
-        walletAddress: 'f1e3aa3z6gkaqxxwmbbna5gf2frggswwjaeavx7bq',
-        contractAddress: 'f1bqdligg7ipuiizvmdn7ijobhbkwaieh6z6lah5y',
-      },
-      payload: 'https://jiti.indexing.co/networks/filecoin/4818438',
-      output: [
-        {
-          amount: 7896300000000000000n,
-          blockNumber: 4818438,
-          from: 'f1e3aa3z6gkaqxxwmbbna5gf2frggswwjaeavx7bq',
-          timestamp: '2025-03-24T23:39:00.000Z',
-          to: 'f1bqdligg7ipuiizvmdn7ijobhbkwaieh6z6lah5y',
-          token: null,
-          tokenType: 'NATIVE',
-          transactionGasFee: 1592498365133760n,
-          transactionHash: 'bafy2bzacecxud3tayyq3caagjej5srufcx5fufjuqkz3ltgfty27wdsrmqeew',
-        },
-      ],
-    },
-
-    //FILECOIN
+    // FILECOIN
     {
       params: {
         network: 'FILECOIN',
@@ -1212,6 +1212,7 @@ const tokenTransfersTemplate: Template = {
         },
       ],
     },
+
     // STARKNET
     {
       params: {
@@ -1275,29 +1276,6 @@ const tokenTransfersTemplate: Template = {
           timestamp: '2025-02-13T23:10:18.000Z',
           transactionHash: 'Vh5cWr2uvCsdhoouBQ+EiUcF54os9oqvh8A/62EroQc=',
           transactionGasFee: 2355233n,
-        },
-      ],
-    },
-
-    // COSMOS
-    {
-      params: {
-        network: 'COSMOS',
-        walletAddress: 'cosmos1x4qvmtcfc02pklttfgxzdccxcsyzklrxavteyz',
-        contractAddress: 'ibc/F663521BF1836B00F5F177680F74BFB9A8B5654A694D0D2BC249E03CF2509013',
-      },
-      payload: 'https://jiti.indexing.co/networks/cosmos/24419691',
-      output: [
-        {
-          blockNumber: 24419691,
-          from: 'cosmos1x4qvmtcfc02pklttfgxzdccxcsyzklrxavteyz',
-          to: 'noble1x4qvmtcfc02pklttfgxzdccxcsyzklrx4073uv',
-          amount: 500000n,
-          token: 'ibc/F663521BF1836B00F5F177680F74BFB9A8B5654A694D0D2BC249E03CF2509013',
-          tokenType: 'NATIVE',
-          timestamp: '2025-02-14T21:48:22.809Z',
-          transactionHash: 'DF5FB086E60EE2ADA3A842751337E06A40696D7983CC1C038ADE236B36ED8AEB',
-          transactionGasFee: 4860n,
         },
       ],
     },
