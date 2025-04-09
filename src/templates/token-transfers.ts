@@ -65,22 +65,21 @@ const tokenTransfersTemplate: Template = {
 
           for (const evt of tx.events as Record<string, unknown>[]) {
             const evtType = evt.type as string;
-            if (
-              evtType === '0x1::coin::WithdrawEvent' ||
-              evtType === '0x1::coin::DepositEvent' ||
-              evtType === '0x1::fungible_asset::Withdraw' ||
-              evtType === '0x1::fungible_asset::Deposit'
-            ) {
+            if (/::(Withdraw|Deposit)[^:]*/.test(evtType)) {
               const data = evt.data as Record<string, any>;
-
               const amount = data.amount as string;
+              const accountAddr = data.store_owner || (evt.guid as { account_address?: string })?.account_address || '';
 
-              const tokenAddr = (data.store as string) || '0x1::aptos_coin::AptosCoin';
-
-              const accountAddr = (evt.guid as { account_address?: string })?.account_address || '';
+              let tokenAddr = '0x1::aptos_coin::AptosCoin';
+              if (data.store) {
+                tokenAddr =
+                  (
+                    tx.changes as { address: string; data: { type: string; data: { metadata: { inner: string } } } }[]
+                  ).find((c) => c.address === data.store && c.data.type === '0x1::fungible_asset::FungibleStore')?.data
+                    ?.data?.metadata?.inner || data.store;
+              }
 
               const compositeKey = `${tx.hash}-${tokenAddr}-${amount}`;
-
               if (!transfersByKey[compositeKey]) {
                 transfersByKey[compositeKey] = {
                   amount,
@@ -88,7 +87,7 @@ const tokenTransfersTemplate: Template = {
                 };
               }
 
-              if (evtType.endsWith('Withdraw') || evtType.endsWith('WithdrawEvent')) {
+              if (/::Withdraw[^:]*/.test(evtType)) {
                 transfersByKey[compositeKey].from = accountAddr;
               } else {
                 transfersByKey[compositeKey].to = accountAddr;
@@ -1010,21 +1009,20 @@ const tokenTransfersTemplate: Template = {
     {
       params: {
         network: 'APTOS',
-        walletAddress: '0xb22c2354c2f2f02947d7690e701dadcdf33bd6e4bb070d9b58a47e3ff5b73a4f',
-        contractAddress: '0x34ae9c81d10616525ce942e73953752bb1893dc15c9515c1e0f5444785499934',
+        contractAddress: '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b',
       },
-      payload: 'https://jiti.indexing.co/networks/aptos/314632074',
+      payload: 'https://jiti.indexing.co/networks/aptos/303623631',
       output: [
         {
-          amount: 20000n,
-          blockNumber: 314632074,
-          from: '0xb22c2354c2f2f02947d7690e701dadcdf33bd6e4bb070d9b58a47e3ff5b73a4f',
-          timestamp: '2025-04-01T19:11:48.409Z',
-          to: '0x34ae9c81d10616525ce942e73953752bb1893dc15c9515c1e0f5444785499934',
-          token: null,
+          amount: 1000060n,
+          blockNumber: 303623631,
+          from: '0xa4e7455d27731ab857e9701b1e6ed72591132b909fe6e4fd99b66c1d6318d9e8',
+          timestamp: '2025-03-14T15:39:49.845Z',
+          to: '0x9317336bfc9ba6987d40492ddea8d41e11b7c2e473f3556a9c82309d326e79ce',
+          token: '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b',
           tokenType: 'TOKEN',
-          transactionGasFee: 17n,
-          transactionHash: '0x6c6c52ec512e247dbde89b02b2cef2fdd4ea0f166628c76e4b6e6d19dc2c7940',
+          transactionGasFee: 16n,
+          transactionHash: '0x24b8854bad1f6543b35069eacd6ec40a583ca7fa452b422b04d747d24b65279c',
         },
       ],
     },
