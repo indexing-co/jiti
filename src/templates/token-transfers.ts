@@ -1,7 +1,8 @@
 import { evmDecodeLogWithMetadata } from '../utils';
 import { Template } from '../types';
 import { decodeTxRaw, Registry } from '@cosmjs/proto-signing';
-import { defaultRegistryTypes as defaultStargateTypes, SigningStargateClient } from '@cosmjs/stargate';
+import { defaultRegistryTypes as defaultStargateTypes } from '@cosmjs/stargate';
+import { sha256 } from 'viem';
 
 type NetworkTransfer = {
   amount: number | bigint;
@@ -51,33 +52,78 @@ const tokenTransfersTemplate: Template = {
             continue;
           }
 
-          const timestamp = tx.timestamp ? new Date(parseInt(tx.timestamp as string) / 1000).toISOString() : null;
-          const txfersByKey: Record<string, Record<string, string>> = {};
+          const timestamp = tx.timestamp ? new Date(parseInt(tx.timestamp as string, 10) / 1_000).toISOString() : null;
+
+          const transfersByKey: Record<
+            string,
+            {
+              amount: string;
+              tokenAddress?: string;
+              from?: string;
+              to?: string;
+            }
+          > = {};
 
           for (const evt of tx.events as Record<string, unknown>[]) {
-            if (['0x1::coin::WithdrawEvent', '0x1::coin::DepositEvent'].includes(evt.type as string)) {
-              const amount = (evt.data as Record<string, string>)?.amount;
-              const key = `0x1-${amount}`;
-              txfersByKey[key] ||= { amount, tokenAddress: null };
-              if ((evt.type as string).endsWith('WithdrawEvent')) {
-                txfersByKey[key].from = (evt.guid as Record<string, string>)?.account_address;
+            const evtType = evt.type as string;
+            if (/::(Withdraw|Deposit)[^:]*/.test(evtType)) {
+              const data = evt.data as Record<string, any>;
+              const amount = data.amount as string;
+              const accountAddr = data.store_owner || (evt.guid as { account_address?: string })?.account_address || '';
+
+              let tokenAddr = '0x1::aptos_coin::AptosCoin';
+              if (data.store) {
+                tokenAddr =
+                  (
+                    tx.changes as { address: string; data: { type: string; data: { metadata: { inner: string } } } }[]
+                  ).find((c) => c.address === data.store && c.data.type === '0x1::fungible_asset::FungibleStore')?.data
+                    ?.data?.metadata?.inner || data.store;
+              }
+
+              const compositeKey = `${tx.hash}-${tokenAddr}-${amount}`;
+              if (!transfersByKey[compositeKey]) {
+                transfersByKey[compositeKey] = {
+                  amount,
+                  tokenAddress: tokenAddr,
+                };
+              }
+
+              if (/::Withdraw[^:]*/.test(evtType)) {
+                transfersByKey[compositeKey].from = accountAddr;
               } else {
-                txfersByKey[key].to = (evt.guid as Record<string, string>)?.account_address;
+                transfersByKey[compositeKey].to = accountAddr;
               }
             }
           }
 
-          for (const partial of Object.values(txfersByKey)) {
-            if (!partial.from || !partial.to) continue;
+          for (const partial of Object.values(transfersByKey)) {
+            if (!partial.from || !partial.to) {
+              continue;
+            }
+
+            const fromAddr = partial.from.length < 66 ? `0x0${partial.from.slice(2)}` : partial.from;
+            const toAddr = partial.to.length < 66 ? `0x0${partial.to.slice(2)}` : partial.to;
+
+            let finalToken: string | null = null;
+            let finalTokenType: 'NATIVE' | 'TOKEN' | 'NFT' = 'TOKEN';
+
+            if (partial.tokenAddress?.toLowerCase().includes('aptos_coin')) {
+              finalToken = null;
+            } else {
+              finalToken = partial.tokenAddress?.toLowerCase();
+            }
+
+            const gasUsed = BigInt((tx.gas_used as string) || '0');
+
             transfers.push({
               amount: BigInt(partial.amount),
-              blockNumber: parseInt(block.block_height as string),
-              from: partial.from?.length < 66 ? `0x0${partial.from?.slice(2)}` : partial.from,
+              blockNumber: parseInt(block.block_height as string, 10),
+              from: fromAddr,
+              to: toAddr,
               timestamp,
-              to: partial.to?.length < 66 ? `0x0${partial.to?.slice(2)}` : partial.to,
-              token: partial.tokenAddress,
-              tokenType: 'NATIVE',
-              transactionGasFee: BigInt(tx.gas_used as string),
+              token: finalToken,
+              tokenType: finalTokenType,
+              transactionGasFee: gasUsed,
               transactionHash: tx.hash as string,
             });
           }
@@ -563,7 +609,6 @@ const tokenTransfersTemplate: Template = {
       case 'BITTENSOR': {
         const typedBlock = block as {
           blockNumber: number;
-          blockHash: string;
           header: { number: string };
           extrinsics: {
             method: string;
@@ -659,6 +704,63 @@ const tokenTransfersTemplate: Template = {
         break;
       }
 
+      case 'FILECOIN': {
+        const typedBlock = block as {
+          Height: number;
+          Blocks: Array<{ ParentBaseFee: string; Timestamp: number }>;
+          messages: Array<{
+            blockMessages: {
+              BlsMessages?: Array<unknown>;
+              SecpkMessages?: Array<{
+                Message: {
+                  From: string;
+                  To: string;
+                  Value: string;
+                  GasFeeCap: string;
+                  GasPremium: string;
+                };
+                CID: { '/': string };
+              }>;
+            };
+          }>;
+          receipts: Array<{ GasUsed: number }>;
+        };
+
+        const blockNumber = typedBlock.Height;
+        const blockTimestamp = new Date(typedBlock.Blocks[0].Timestamp * 1000).toISOString();
+        const parentBaseFee = BigInt(typedBlock.Blocks[0].ParentBaseFee);
+
+        let receiptIndex = 0;
+
+        for (const msgGroup of typedBlock.messages) {
+          const secpkMessages = msgGroup.blockMessages.SecpkMessages || [];
+
+          for (const msg of secpkMessages) {
+            const receipt = typedBlock.receipts[receiptIndex++];
+            const gasUsed = BigInt(receipt.GasUsed);
+            const gasFeeCap = BigInt(msg.Message.GasFeeCap);
+            const gasPremium = BigInt(msg.Message.GasPremium);
+            const baseFeeBurn = gasUsed * parentBaseFee;
+            const minerTip =
+              gasUsed * (gasPremium < gasFeeCap - parentBaseFee ? gasPremium : gasFeeCap - parentBaseFee);
+            const transactionGasFee = baseFeeBurn + minerTip;
+
+            transfers.push({
+              amount: BigInt(msg.Message.Value),
+              blockNumber,
+              from: msg.Message.From,
+              to: msg.Message.To,
+              token: null,
+              tokenType: 'NATIVE',
+              timestamp: blockTimestamp,
+              transactionGasFee,
+              transactionHash: msg.CID['/'],
+            });
+          }
+        }
+        break;
+      }
+
       // attempt to introspect data types
       default: {
         // try Cosmos
@@ -670,10 +772,10 @@ const tokenTransfersTemplate: Template = {
 
           const blockNumber = Number(typedBlock.block.header.height);
           const blockTimestamp = new Date(typedBlock.block.header.time).toISOString();
-          const blockHash = typedBlock.block_id.hash;
 
           for (const txRaw of typedBlock.block.data.txs || []) {
             const decoded = decodeTxRaw(new Uint8Array(Buffer.from(txRaw, 'base64')));
+            const txHash = sha256(new Uint8Array(Buffer.from(txRaw, 'base64')));
             const transactionGasFee = BigInt(decoded.authInfo.fee?.amount?.[0]?.amount || '0');
 
             const registry = new Registry(defaultStargateTypes);
@@ -690,7 +792,7 @@ const tokenTransfersTemplate: Template = {
                   token: decodedMsg.token.denom,
                   tokenType: 'NATIVE',
                   timestamp: blockTimestamp,
-                  transactionHash: blockHash,
+                  transactionHash: txHash.slice(2).toUpperCase(),
                   transactionGasFee,
                 });
               }
@@ -873,21 +975,54 @@ const tokenTransfersTemplate: Template = {
     {
       params: {
         network: 'APTOS',
-        walletAddress: '0x04b2b6bc8c2c5794c51607c962f482593f9b5ea09373a8ce249a1f799cca7a1e',
-        contractAddress: '0x1',
+        walletAddress: '0x5bd7de5c56d5691f32ea86c973c73fec7b1445e59736c97158020018c080bb00',
+        contractAddress: '0x3b5d2e7e8da86903beb19d5a7135764aac812e18af193895d75f3a8f6a066cb0',
       },
       payload: 'https://jiti.indexing.co/networks/aptos/297956660',
       output: [
         {
+          amount: 1611839920n,
+          blockNumber: 297956660,
+          from: '0x5bd7de5c56d5691f32ea86c973c73fec7b1445e59736c97158020018c080bb00',
+          to: '0x3b5d2e7e8da86903beb19d5a7135764aac812e18af193895d75f3a8f6a066cb0',
+          timestamp: '2025-03-02T21:07:06.002Z',
+          token: null,
+          tokenType: 'TOKEN',
+          transactionGasFee: 13n,
+          transactionHash: '0xfbdef795d11df124cca264f3370b09fb04fb1c1d24a2d2e1df0693c096a76d13',
+        },
+        {
           amount: 1502138836n,
           blockNumber: 297956660,
           from: '0x5bd7de5c56d5691f32ea86c973c73fec7b1445e59736c97158020018c080bb00',
-          timestamp: '2025-03-02T21:07:06.002Z',
           to: '0x04b2b6bc8c2c5794c51607c962f482593f9b5ea09373a8ce249a1f799cca7a1e',
+          timestamp: '2025-03-02T21:07:06.002Z',
           token: null,
-          tokenType: 'NATIVE',
+          tokenType: 'TOKEN',
           transactionGasFee: 13n,
           transactionHash: '0xfbdef795d11df124cca264f3370b09fb04fb1c1d24a2d2e1df0693c096a76d13',
+        },
+      ],
+    },
+
+    // APTOS
+    {
+      params: {
+        network: 'APTOS',
+        contractAddress: '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b',
+      },
+      payload: 'https://jiti.indexing.co/networks/aptos/303623631',
+      output: [
+        {
+          amount: 1000060n,
+          blockNumber: 303623631,
+          from: '0xa4e7455d27731ab857e9701b1e6ed72591132b909fe6e4fd99b66c1d6318d9e8',
+          timestamp: '2025-03-14T15:39:49.845Z',
+          to: '0x9317336bfc9ba6987d40492ddea8d41e11b7c2e473f3556a9c82309d326e79ce',
+          token: '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b',
+          tokenType: 'TOKEN',
+          transactionGasFee: 16n,
+          transactionHash: '0x24b8854bad1f6543b35069eacd6ec40a583ca7fa452b422b04d747d24b65279c',
         },
       ],
     },
@@ -963,6 +1098,29 @@ const tokenTransfersTemplate: Template = {
       ],
     },
 
+    // COSMOS
+    {
+      params: {
+        network: 'COSMOS',
+        walletAddress: 'cosmos1x4qvmtcfc02pklttfgxzdccxcsyzklrxavteyz',
+        contractAddress: 'ibc/F663521BF1836B00F5F177680F74BFB9A8B5654A694D0D2BC249E03CF2509013',
+      },
+      payload: 'https://jiti.indexing.co/networks/cosmos/24419691',
+      output: [
+        {
+          blockNumber: 24419691,
+          from: 'cosmos1x4qvmtcfc02pklttfgxzdccxcsyzklrxavteyz',
+          to: 'noble1x4qvmtcfc02pklttfgxzdccxcsyzklrx4073uv',
+          amount: 500000n,
+          token: 'ibc/F663521BF1836B00F5F177680F74BFB9A8B5654A694D0D2BC249E03CF2509013',
+          tokenType: 'NATIVE',
+          timestamp: '2025-02-14T21:48:22.809Z',
+          transactionHash: '963D4D7BB59C1280F58A7ECA2F1934E2AA005109A989193C815C7B98EDCD7445',
+          transactionGasFee: 4860n,
+        },
+      ],
+    },
+
     // DOGECOIN
     {
       params: {
@@ -986,7 +1144,7 @@ const tokenTransfersTemplate: Template = {
       ],
     },
 
-    //FILECOIN
+    // FILECOIN
     {
       params: {
         network: 'FILECOIN',
@@ -1054,6 +1212,7 @@ const tokenTransfersTemplate: Template = {
         },
       ],
     },
+
     // STARKNET
     {
       params: {
@@ -1076,7 +1235,7 @@ const tokenTransfersTemplate: Template = {
         },
       ],
     },
-    //SUI
+    // SUI
     {
       params: {
         network: 'SUI',
@@ -1117,29 +1276,6 @@ const tokenTransfersTemplate: Template = {
           timestamp: '2025-02-13T23:10:18.000Z',
           transactionHash: 'Vh5cWr2uvCsdhoouBQ+EiUcF54os9oqvh8A/62EroQc=',
           transactionGasFee: 2355233n,
-        },
-      ],
-    },
-
-    // COSMOS
-    {
-      params: {
-        network: 'COSMOS',
-        walletAddress: 'cosmos1x4qvmtcfc02pklttfgxzdccxcsyzklrxavteyz',
-        contractAddress: 'ibc/F663521BF1836B00F5F177680F74BFB9A8B5654A694D0D2BC249E03CF2509013',
-      },
-      payload: 'https://jiti.indexing.co/networks/cosmos/24419691',
-      output: [
-        {
-          blockNumber: 24419691,
-          from: 'cosmos1x4qvmtcfc02pklttfgxzdccxcsyzklrxavteyz',
-          to: 'noble1x4qvmtcfc02pklttfgxzdccxcsyzklrx4073uv',
-          amount: 500000n,
-          token: 'ibc/F663521BF1836B00F5F177680F74BFB9A8B5654A694D0D2BC249E03CF2509013',
-          tokenType: 'NATIVE',
-          timestamp: '2025-02-14T21:48:22.809Z',
-          transactionHash: 'DF5FB086E60EE2ADA3A842751337E06A40696D7983CC1C038ADE236B36ED8AEB',
-          transactionGasFee: 4860n,
         },
       ],
     },
