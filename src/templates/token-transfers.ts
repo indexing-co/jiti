@@ -530,20 +530,54 @@ const tokenTransfersTemplate: Template = {
       }
 
       case 'SUI': {
-        const blockNumber = block.sequence as number;
-        const blockTimestamp = new Date(block.timestamp as number).toISOString();
+        const blockNumber = parseInt(block.sequence as string, 10);
+        const blockTimestamp = new Date(parseInt(block.timestamp as string, 10)).toISOString();
 
-        for (const tx of (block.transactions as any[]) || []) {
+        const transactions = (block.transactions as any[]) || [];
+        for (const tx of transactions) {
           const transactionHash = tx.digest as string;
-          const transactionGasFee = BigInt((tx.gasFee as string) || '0');
 
-          for (const bc of (tx.balanceChanges as any[]) || []) {
+          let transactionGasFee = BigInt(0);
+          if (tx.effects?.gasUsed) {
+            const gu = tx.effects.gasUsed;
+            transactionGasFee =
+              BigInt(gu.computationCost) +
+              BigInt(gu.storageCost) -
+              BigInt(gu.storageRebate) +
+              BigInt(gu.nonRefundableStorageFee);
+            if (transactionGasFee < 0n) {
+              transactionGasFee = 0n;
+            }
+          }
+          const balanceChanges = (tx.balanceChanges as any[]) || [];
+          for (const bc of balanceChanges) {
+            let rawAmt = BigInt(bc.amount as string);
+            if (rawAmt === 0n) continue;
+
+            let fromAddr: string | undefined;
+            let toAddr: string | undefined;
+
+            const rawOwner =
+              bc.owner?.AddressOwner ||
+              bc.owner?.ObjectOwner ||
+              bc.owner?.Shared?.initial_shared_version ||
+              'UNKNOWN_OWNER';
+
+            if (rawAmt < 0n) {
+              fromAddr = String(rawOwner);
+              toAddr = undefined;
+              rawAmt = -rawAmt;
+            } else {
+              fromAddr = undefined;
+              toAddr = String(rawOwner);
+            }
+
             transfers.push({
               blockNumber,
-              from: tx.sender ? (tx.sender as string) : undefined,
-              to: tx.receiver ? (tx.receiver as string) : undefined,
-              amount: BigInt(bc.amount as string),
-              token: bc.coinRepr as string,
+              from: fromAddr,
+              to: toAddr,
+              amount: rawAmt,
+              token: bc.coinType as string,
               tokenType: 'NATIVE',
               timestamp: blockTimestamp,
               transactionHash,
@@ -551,7 +585,6 @@ const tokenTransfersTemplate: Template = {
             });
           }
         }
-
         break;
       }
 
@@ -641,63 +674,6 @@ const tokenTransfersTemplate: Template = {
               timestamp: blockTimestamp,
               transactionGasFee: 0n,
               transactionHash: extrinsic.hash,
-            });
-          }
-        }
-        break;
-      }
-
-      case 'FILECOIN': {
-        const typedBlock = block as {
-          Height: number;
-          Blocks: Array<{ ParentBaseFee: string; Timestamp: number }>;
-          messages: Array<{
-            blockMessages: {
-              BlsMessages?: Array<unknown>;
-              SecpkMessages?: Array<{
-                Message: {
-                  From: string;
-                  To: string;
-                  Value: string;
-                  GasFeeCap: string;
-                  GasPremium: string;
-                };
-                CID: { '/': string };
-              }>;
-            };
-          }>;
-          receipts: Array<{ GasUsed: number }>;
-        };
-
-        const blockNumber = typedBlock.Height;
-        const blockTimestamp = new Date(typedBlock.Blocks[0].Timestamp * 1000).toISOString();
-        const parentBaseFee = BigInt(typedBlock.Blocks[0].ParentBaseFee);
-
-        let receiptIndex = 0;
-
-        for (const msgGroup of typedBlock.messages) {
-          const secpkMessages = msgGroup.blockMessages.SecpkMessages || [];
-
-          for (const msg of secpkMessages) {
-            const receipt = typedBlock.receipts[receiptIndex++];
-            const gasUsed = BigInt(receipt.GasUsed);
-            const gasFeeCap = BigInt(msg.Message.GasFeeCap);
-            const gasPremium = BigInt(msg.Message.GasPremium);
-            const baseFeeBurn = gasUsed * parentBaseFee;
-            const minerTip =
-              gasUsed * (gasPremium < gasFeeCap - parentBaseFee ? gasPremium : gasFeeCap - parentBaseFee);
-            const transactionGasFee = baseFeeBurn + minerTip;
-
-            transfers.push({
-              amount: BigInt(msg.Message.Value),
-              blockNumber,
-              from: msg.Message.From,
-              to: msg.Message.To,
-              token: null,
-              tokenType: 'NATIVE',
-              timestamp: blockTimestamp,
-              transactionGasFee,
-              transactionHash: msg.CID['/'],
             });
           }
         }
@@ -1239,21 +1215,54 @@ const tokenTransfersTemplate: Template = {
     {
       params: {
         network: 'SUI',
-        walletAddress: '0xfd0fb434d076e4cca300cf6534a5235b19ad184eedf49066726664ded42c6b5e',
+        walletAddress: '0x39b9e5942df9a4686ebe727534077281d6adcee15a9bb74d3e052e56d78b2744',
         contractAddress: '',
       },
-      payload: 'https://jiti.indexing.co/networks/sui/112336044',
+      payload: 'https://jiti.indexing.co/networks/sui/132734364',
       output: [
         {
-          blockNumber: 112336044,
-          from: '0xfd0fb434d076e4cca300cf6534a5235b19ad184eedf49066726664ded42c6b5e',
+          blockNumber: 132734364,
+          from: '0x39b9e5942df9a4686ebe727534077281d6adcee15a9bb74d3e052e56d78b2744',
           to: undefined,
-          amount: 180772n,
-          token: '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
+          amount: 5321172n,
+          token: '0x2::sui::SUI',
           tokenType: 'NATIVE',
-          timestamp: '2025-02-13T23:10:54.529Z',
-          transactionHash: '336V3wP8cHDAnB1Aku3j6n9948i8FG5N1eVP6Ac68BaE',
-          transactionGasFee: -4165572n,
+          timestamp: '2025-04-11T14:57:40.091Z',
+          transactionHash: '4JWC8DX8eKYhwvRgzesGNWsb5t5RUyQVSNibKxLRaN22',
+          transactionGasFee: 5408344n,
+        },
+        {
+          blockNumber: 132734364,
+          from: '0x39b9e5942df9a4686ebe727534077281d6adcee15a9bb74d3e052e56d78b2744',
+          to: undefined,
+          amount: 825772n,
+          token: '0x2::sui::SUI',
+          tokenType: 'NATIVE',
+          timestamp: '2025-04-11T14:57:40.091Z',
+          transactionHash: '5bXBDeoYqXTawkf2bCDriAE2M6Vu2EgYKEgJ1hW4qagZ',
+          transactionGasFee: 901544n,
+        },
+        {
+          blockNumber: 132734364,
+          from: '0x39b9e5942df9a4686ebe727534077281d6adcee15a9bb74d3e052e56d78b2744',
+          to: undefined,
+          amount: 5321248n,
+          token: '0x2::sui::SUI',
+          tokenType: 'NATIVE',
+          timestamp: '2025-04-11T14:57:40.091Z',
+          transactionHash: '6KZYwvaAk76AL9p5kjkA27Tj5Jy47ipCxLKiCXtBbngo',
+          transactionGasFee: 5408496n,
+        },
+        {
+          blockNumber: 132734364,
+          from: '0x39b9e5942df9a4686ebe727534077281d6adcee15a9bb74d3e052e56d78b2744',
+          to: undefined,
+          amount: 5321096n,
+          token: '0x2::sui::SUI',
+          tokenType: 'NATIVE',
+          timestamp: '2025-04-11T14:57:40.091Z',
+          transactionHash: 'HcJAHtSUypt8z2us2HqDm7PzB5HKS3ASY86pDKNAsgnE',
+          transactionGasFee: 5408192n,
         },
       ],
     },
