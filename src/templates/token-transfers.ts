@@ -713,7 +713,7 @@ const tokenTransfersTemplate: Template = {
 
           for (const msg of secpkMessages) {
             const receipt = typedBlock.receipts[receiptIndex++];
-            const gasUsed = BigInt(receipt.GasUsed);
+            const gasUsed = receipt ? BigInt(receipt.GasUsed) : BigInt(0);
             const gasFeeCap = BigInt(msg.Message.GasFeeCap);
             const gasPremium = BigInt(msg.Message.GasPremium);
             const baseFeeBurn = gasUsed * parentBaseFee;
