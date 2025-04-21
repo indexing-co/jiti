@@ -1,5 +1,5 @@
 import { evmDecodeLogWithMetadata } from '../utils';
-import { Template } from '../types';
+import { Template, TemplateTest } from '../types';
 import { decodeTxRaw, Registry } from '@cosmjs/proto-signing';
 import { defaultRegistryTypes as defaultStargateTypes } from '@cosmjs/stargate';
 import { sha256 } from 'viem';
@@ -290,6 +290,7 @@ const tokenTransfersTemplate: Template = {
           const solanaTx = tx as {
             meta: {
               fee: number;
+              loadedAddresses: { readonly: string[]; writable: string[] };
               postTokenBalances: {
                 accountIndex: number;
                 mint: string;
@@ -312,6 +313,9 @@ const tokenTransfersTemplate: Template = {
           };
           const txHash = solanaTx.transaction.signatures[0];
           const timestamp = block.blockTime ? new Date((block.blockTime as number) * 1000).toISOString() : null;
+          const allAccounts = solanaTx.transaction.message.accountKeys
+            .concat(solanaTx.meta.loadedAddresses.writable)
+            .concat(solanaTx.meta.loadedAddresses.readonly);
 
           let txFee = BigInt(solanaTx.meta.fee);
           if (txFee < BigInt(10)) {
@@ -344,12 +348,10 @@ const tokenTransfersTemplate: Template = {
                   token: post.mint,
                   tokenType: 'TOKEN',
                 };
-                if (transfersByKey[key]) {
-                  if (isNegDiff) {
-                    delete txfer.to;
-                  } else {
-                    delete txfer.from;
-                  }
+                if (isNegDiff) {
+                  delete txfer.to;
+                } else {
+                  delete txfer.from;
                 }
                 transfersByKey[key] = Object.assign(transfersByKey[key] || {}, txfer);
                 matched = true;
@@ -374,12 +376,10 @@ const tokenTransfersTemplate: Template = {
                 transactionGasFee: txFee,
                 transactionHash: txHash,
               };
-              if (transfersByKey[key]) {
-                if (isNegDiff) {
-                  delete txfer.to;
-                } else {
-                  delete txfer.from;
-                }
+              if (isNegDiff) {
+                delete txfer.to;
+              } else {
+                delete txfer.from;
               }
               transfersByKey[key] = Object.assign(transfersByKey[key] || {}, txfer);
             }
@@ -400,30 +400,60 @@ const tokenTransfersTemplate: Template = {
                 blockNumber: block.blockHeight as number,
                 from:
                   post > pre
-                    ? typeof solanaTx.transaction.message.accountKeys[0] === 'string'
-                      ? solanaTx.transaction.message.accountKeys[0]
-                      : (solanaTx.transaction.message.accountKeys[0] as { pubkey: string })?.pubkey
-                    : typeof solanaTx.transaction.message.accountKeys[i] === 'string'
-                      ? (solanaTx.transaction.message.accountKeys[i] as string)
-                      : (solanaTx.transaction.message.accountKeys[i] as { pubkey: string })?.pubkey,
+                    ? typeof allAccounts[0] === 'string'
+                      ? allAccounts[0]
+                      : (allAccounts[0] as { pubkey: string })?.pubkey
+                    : typeof allAccounts[i] === 'string'
+                      ? (allAccounts[i] as string)
+                      : (allAccounts[i] as { pubkey: string })?.pubkey,
                 timestamp,
                 to:
-                  typeof solanaTx.transaction.message.accountKeys[i] === 'string'
-                    ? (solanaTx.transaction.message.accountKeys[i] as string)
-                    : (solanaTx.transaction.message.accountKeys[i] as { pubkey: string })?.pubkey?.toString(),
+                  typeof allAccounts[i] === 'string'
+                    ? (allAccounts[i] as string)
+                    : (allAccounts[i] as { pubkey: string })?.pubkey?.toString(),
                 token: null,
                 tokenType: 'NATIVE',
                 transactionGasFee: txFee,
                 transactionHash: txHash,
               };
-              if (transfersByKey[key]) {
-                if (post > pre) {
+              if (post > pre) {
+                if (transfersByKey[key]) {
                   delete txfer.from;
-                } else {
-                  delete txfer.to;
                 }
+              } else {
+                delete txfer.to;
               }
               transfersByKey[key] = Object.assign(transfersByKey[key] || {}, txfer);
+            }
+          }
+
+          const unmatchedFrom: Record<string, NetworkTransfer[]> = {};
+          const unmatchedTo: Record<string, NetworkTransfer[]> = {};
+          for (const key in transfersByKey) {
+            const txfer = transfersByKey[key];
+            if (!txfer.from) {
+              if (!unmatchedFrom[txfer.token]) unmatchedFrom[txfer.token] = [];
+              unmatchedFrom[txfer.token].push(txfer);
+              delete transfersByKey[key];
+            } else if (!txfer.to) {
+              if (!unmatchedTo[txfer.token]) unmatchedTo[txfer.token] = [];
+              unmatchedTo[txfer.token].push(txfer);
+              delete transfersByKey[key];
+            }
+          }
+
+          for (const token in unmatchedFrom) {
+            if (
+              unmatchedTo[token]?.length &&
+              unmatchedTo[token].reduce((a, b) => a + BigInt(b.amount), BigInt(0)) -
+                unmatchedFrom[token].reduce((a, b) => a + BigInt(b.amount), BigInt(0)) ===
+                BigInt(0)
+            ) {
+              unmatchedTo[token].sort((a, b) => (a.amount > b.amount ? 1 : -1));
+              unmatchedFrom[token].forEach((um) => {
+                um.from = unmatchedTo[token][0].from;
+                transfersByKey[`${token}-${um.amount.toString()}`] = um;
+              });
             }
           }
 
@@ -1364,7 +1394,49 @@ const tokenTransfersTemplate: Template = {
         },
       ],
     },
-  ],
+    {
+      params: {
+        network: 'SOLANA',
+        walletAddress: 'DgC9bBDvJYeVyTqcp8nW5F5USNvxBiZ9NMoTUVy5UVPz',
+      },
+      payload: 'https://jiti.indexing.co/networks/solana/332450156',
+      output: [
+        {
+          amount: 402062750n,
+          blockNumber: 310691098,
+          from: 'DgC9bBDvJYeVyTqcp8nW5F5USNvxBiZ9NMoTUVy5UVPz',
+          timestamp: '2025-04-10T02:29:35.000Z',
+          to: '5yY5BGRgwa5rxvYPpMV9EkDpwp6w1vNNXUNzUCtMoFfR',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 80001n,
+          transactionHash: '32T7ANVqz1sHBoKhfk3omrRqwDCJFYMi6TfuAwyqHPCZPCihdWTU9t9i5D6tGwuytWRwRqnEXksMPMWbFbfBzVUk',
+        },
+        {
+          amount: 97937250n,
+          blockNumber: 310691098,
+          from: 'DgC9bBDvJYeVyTqcp8nW5F5USNvxBiZ9NMoTUVy5UVPz',
+          timestamp: '2025-04-10T02:29:35.000Z',
+          to: '9zF2ZWTjnk6UkyWRxNtqy9UHims9u7LSaHGyhA5PwDSx',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 80001n,
+          transactionHash: '32T7ANVqz1sHBoKhfk3omrRqwDCJFYMi6TfuAwyqHPCZPCihdWTU9t9i5D6tGwuytWRwRqnEXksMPMWbFbfBzVUk',
+        },
+        {
+          amount: 19796403663n,
+          blockNumber: 310691098,
+          timestamp: '2025-04-10T02:29:35.000Z',
+          to: 'DgC9bBDvJYeVyTqcp8nW5F5USNvxBiZ9NMoTUVy5UVPz',
+          transactionGasFee: 80001n,
+          transactionHash: '32T7ANVqz1sHBoKhfk3omrRqwDCJFYMi6TfuAwyqHPCZPCihdWTU9t9i5D6tGwuytWRwRqnEXksMPMWbFbfBzVUk',
+          token: 'CniPCE4b3s8gSUPhUiyMjXnytrEqUrMfSsnbBjLCpump',
+          tokenType: 'TOKEN',
+          from: '4acL7mD2J6GYJy2g3iVTvfpmHCQSZ1rb8DBuupjcVzHJ',
+        },
+      ],
+    },
+  ] as TemplateTest[],
 };
 
 export default tokenTransfersTemplate;
