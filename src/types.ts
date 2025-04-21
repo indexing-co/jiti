@@ -27,3 +27,9 @@ export type TemplateTest = {
   payload: `https://${string}` | Record<string, unknown>;
   output: unknown;
 };
+
+export type SubTemplate = {
+  match: (payload: Record<string, unknown>) => boolean;
+  transform: Template['transform'];
+  tests: Template['tests'];
+};
