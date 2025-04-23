@@ -5,7 +5,7 @@ import { evmDecodeLogWithMetadata } from '../../utils';
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 export const EVMTokenTransfers: SubTemplate = {
-  match: (block) => true,
+  match: () => true,
 
   transform(block, _ctx) {
     const TOKEN_TYPES = (_ctx.params.tokenTypes as NetworkTransfer['tokenType'][]) || [];
@@ -141,6 +141,7 @@ export const EVMTokenTransfers: SubTemplate = {
         }
       }
     }
+
     if (typeof _ctx.params.contractAddress === 'string') {
       _ctx.params.contractAddress = _ctx.params.contractAddress.toLowerCase();
     }
@@ -171,6 +172,28 @@ export const EVMTokenTransfers: SubTemplate = {
           tokenType: 'TOKEN',
           transactionGasFee: 1192354854229n,
           transactionHash: '0x69c9b12ccbe2d4f2f1dfc7c4a8557fc099fc5df276424417815acbc79a06fd56',
+        },
+      ],
+    },
+    {
+      params: {
+        network: 'POLYGON',
+        walletAddress: '0x06D8c5E25B9aD46dA43FD71571E8a12aae341570',
+        contractAddress: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+      },
+      payload: 'https://jiti.indexing.co/networks/polygon/70623684',
+      output: [
+        {
+          amount: 4877821n,
+          blockNumber: 70623684,
+          from: '0xcb39c5b0db9c5b6bd1d9273dccc2f98f532a8bc6',
+          index: 0,
+          timestamp: '2025-04-22T17:51:55.000Z',
+          to: '0x06d8c5e25b9ad46da43fd71571e8a12aae341570',
+          token: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+          tokenType: 'TOKEN',
+          transactionGasFee: 8950898176621703n,
+          transactionHash: '0x5235cbe22deba5dd8a42f36024b1df1c0f82a8e901e6cc176a38e2fe49b1d2e3',
         },
       ],
     },

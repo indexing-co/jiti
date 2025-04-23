@@ -7,8 +7,8 @@ export const UTXOTokenTransfers: SubTemplate = {
   transform(block) {
     let transfers: NetworkTransfer[] = [];
 
+    const timestamp = block.time ? new Date((block.time as number) * 1000).toISOString() : null;
     for (const tx of block.tx as Record<string, unknown>[]) {
-      const timestamp = tx.time ? new Date((tx.time as number) * 1000).toISOString() : null;
       const vin = tx.vin[0] as { prevout?: { scriptPubKey: { address: string } }; vout?: number };
       const vout = tx.vout as { value: number; scriptPubKey?: { address: string; addresses?: string[] } }[];
 
