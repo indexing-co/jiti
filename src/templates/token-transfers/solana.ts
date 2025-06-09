@@ -163,7 +163,7 @@ export const SolanaTokenTransfers: SubTemplate = {
           const unmatchedDiff =
             unmatchedTo[token].reduce((a, b) => a + BigInt(b.amount), BigInt(0)) -
             unmatchedFrom[token].reduce((a, b) => a + BigInt(b.amount), BigInt(0));
-          if (unmatchedDiff === BigInt(0) || (token === 'null' && unmatchedDiff === txFee)) {
+          if (unmatchedDiff === BigInt(0) || token === 'null') {
             unmatchedTo[token].sort((a, b) => (a.amount > b.amount ? 1 : -1));
             unmatchedFrom[token].forEach((um) => {
               um.from = unmatchedTo[token][0].from;
@@ -370,5 +370,25 @@ export const SolanaTokenTransfers: SubTemplate = {
         },
       ],
     },
-  ],
+    {
+      params: {
+        network: 'SOLANA',
+        walletAddress: 'Gaq4K6e5tY9Z8L9bcWFPhNbteb9YYekjzH6eQPx24B5i',
+      },
+      payload: 'https://jiti.indexing.co/networks/solana/343762745',
+      output: [
+        {
+          amount: 704724041n,
+          blockNumber: 321976935,
+          from: 'AVAZvHLR2PcWpDf8BXY4rVxNHYRBytycHkcB5z5QNXYm',
+          timestamp: '2025-05-31T21:20:52.000Z',
+          to: 'Gaq4K6e5tY9Z8L9bcWFPhNbteb9YYekjzH6eQPx24B5i',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 191568n,
+          transactionHash: '5usAzMSrENJQscoRdxi48n22aMcFmJ1U7f2yGmwUk8AHSFCzLfRtBP7gVnsZbe7Jy9SG2VoeVbVSoVvu43tsdvm1',
+        },
+      ],
+    },
+  ].slice(0) as SubTemplate['tests'],
 };
