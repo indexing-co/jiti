@@ -13,6 +13,7 @@ export const AptosTokenTransfers: SubTemplate = {
       }
 
       const timestamp = tx.timestamp ? new Date(parseInt(tx.timestamp as string, 10) / 1_000).toISOString() : null;
+      const gasUsed = BigInt((tx.gas_used as string) || '0');
 
       const transfersByKey: Record<
         string,
@@ -23,6 +24,47 @@ export const AptosTokenTransfers: SubTemplate = {
           to?: string;
         }
       > = {};
+
+      const sender = tx.sender as string;
+      const accountAddressMap: Record<string, string> = {};
+      const changes = tx.changes as {
+        address: string;
+        data: {
+          data: { balance: string; metadata?: { inner: string }; owner?: string };
+          type: string;
+        };
+      }[];
+
+      for (let ci = 0; ci < changes.length; ci += 1) {
+        if (!changes[ci]?.data) continue;
+        const {
+          address: accountAddress,
+          data: {
+            data: { balance, metadata },
+            type: changeType,
+          },
+        } = changes[ci];
+
+        if (changeType === '0x1::fungible_asset::FungibleStore') {
+          if (!accountAddressMap[accountAddress]) {
+            accountAddressMap[accountAddress] = changes[ci + 1]?.data.data.owner;
+          }
+          const to = accountAddressMap[accountAddress];
+          const tokenAddress = metadata?.inner;
+          if (!to || !tokenAddress || to === sender) continue;
+          transfers.push({
+            amount: BigInt(balance), // @TODO: is this always correct?
+            blockNumber: parseInt(block.block_height as string, 10),
+            from: sender,
+            to,
+            timestamp,
+            token: tokenAddress,
+            tokenType: 'TOKEN',
+            transactionGasFee: gasUsed,
+            transactionHash: tx.hash as string,
+          });
+        }
+      }
 
       for (const evt of tx.events as Record<string, unknown>[]) {
         const evtType = evt.type as string;
@@ -62,17 +104,16 @@ export const AptosTokenTransfers: SubTemplate = {
 
         const fromAddr = partial.from.length < 66 ? `0x0${partial.from.slice(2)}` : partial.from;
         const toAddr = partial.to.length < 66 ? `0x0${partial.to.slice(2)}` : partial.to;
+        if (toAddr === '0x00') continue;
 
         let finalToken: string | null = null;
-        let finalTokenType: 'NATIVE' | 'TOKEN' | 'NFT' = 'TOKEN';
+        let finalTokenType: NetworkTransfer['tokenType'] = 'TOKEN';
 
         if (partial.tokenAddress?.toLowerCase().includes('aptos_coin')) {
           finalToken = null;
         } else {
           finalToken = partial.tokenAddress?.toLowerCase();
         }
-
-        const gasUsed = BigInt((tx.gas_used as string) || '0');
 
         transfers.push({
           amount: BigInt(partial.amount),
@@ -131,6 +172,17 @@ export const AptosTokenTransfers: SubTemplate = {
       payload: 'https://jiti.indexing.co/networks/aptos/303623631',
       output: [
         {
+          amount: 3000160n,
+          blockNumber: 303623631,
+          from: '0xa4e7455d27731ab857e9701b1e6ed72591132b909fe6e4fd99b66c1d6318d9e8',
+          timestamp: '2025-03-14T15:39:49.845Z',
+          to: '0x9317336bfc9ba6987d40492ddea8d41e11b7c2e473f3556a9c82309d326e79ce',
+          token: '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b',
+          tokenType: 'TOKEN',
+          transactionGasFee: 16n,
+          transactionHash: '0x24b8854bad1f6543b35069eacd6ec40a583ca7fa452b422b04d747d24b65279c',
+        },
+        {
           amount: 1000060n,
           blockNumber: 303623631,
           from: '0xa4e7455d27731ab857e9701b1e6ed72591132b909fe6e4fd99b66c1d6318d9e8',
@@ -140,6 +192,28 @@ export const AptosTokenTransfers: SubTemplate = {
           tokenType: 'TOKEN',
           transactionGasFee: 16n,
           transactionHash: '0x24b8854bad1f6543b35069eacd6ec40a583ca7fa452b422b04d747d24b65279c',
+        },
+      ],
+    },
+
+    {
+      params: {
+        network: 'APTOS',
+        contractAddress: '0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b',
+        walletAddress: '0x1a07942979574456e8197ac0ba8e3bfcf93d7922493cc3ca0c6b46b580b0a47e',
+      },
+      payload: 'https://jiti.indexing.co/networks/aptos/326121833',
+      output: [
+        {
+          amount: 10000000n,
+          blockNumber: 326121833,
+          from: '0xd91c64b777e51395c6ea9dec562ed79a4afa0cd6dad5a87b187c37198a1f855a',
+          timestamp: '2025-04-19T08:57:28.135Z',
+          to: '0x1a07942979574456e8197ac0ba8e3bfcf93d7922493cc3ca0c6b46b580b0a47e',
+          token: '0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b',
+          tokenType: 'TOKEN',
+          transactionGasFee: 10877n,
+          transactionHash: '0xc5a21679a947f986908b09091516bc3896245d974686ca2bd5709b7dbc5118fb',
         },
       ],
     },
