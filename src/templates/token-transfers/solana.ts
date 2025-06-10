@@ -43,7 +43,7 @@ export const SolanaTokenTransfers: SubTemplate = {
         txFee = txFee * BigInt(Math.pow(10, 9));
       }
 
-      const transfersByKey: Record<string, NetworkTransfer> = {};
+      const transfersByKey: Record<string, NetworkTransfer[]> = {};
       for (const post of solanaTx.meta.postTokenBalances) {
         let matched = false;
         for (const pre of solanaTx.meta.preTokenBalances) {
@@ -75,7 +75,21 @@ export const SolanaTokenTransfers: SubTemplate = {
             } else {
               delete txfer.from;
             }
-            transfersByKey[key] = Object.assign(transfersByKey[key] || {}, txfer);
+            if (!transfersByKey[key]) {
+              transfersByKey[key] = [txfer];
+            } else {
+              let didMerge = false;
+              for (let tbi = 0; tbi < transfersByKey[key].length; tbi += 1) {
+                if ((txfer.to && !transfersByKey[key][tbi].to) || (txfer.from && !transfersByKey[key][tbi].from)) {
+                  didMerge = true;
+                  transfersByKey[key][tbi] = Object.assign(transfersByKey[key][tbi] || {}, txfer);
+                  break;
+                }
+              }
+              if (!didMerge) {
+                transfersByKey[key].push(txfer);
+              }
+            }
             matched = true;
           }
         }
@@ -103,7 +117,21 @@ export const SolanaTokenTransfers: SubTemplate = {
           } else {
             delete txfer.from;
           }
-          transfersByKey[key] = Object.assign(transfersByKey[key] || {}, txfer);
+          if (!transfersByKey[key]) {
+            transfersByKey[key] = [txfer];
+          } else {
+            let didMerge = false;
+            for (let tbi = 0; tbi < transfersByKey[key].length; tbi += 1) {
+              if ((txfer.to && !transfersByKey[key][tbi].to) || (txfer.from && !transfersByKey[key][tbi].from)) {
+                didMerge = true;
+                transfersByKey[key][tbi] = Object.assign(transfersByKey[key][tbi] || {}, txfer);
+                break;
+              }
+            }
+            if (!didMerge) {
+              transfersByKey[key].push(txfer);
+            }
+          }
         }
       }
 
@@ -139,22 +167,39 @@ export const SolanaTokenTransfers: SubTemplate = {
           } else {
             delete txfer.to;
           }
-          transfersByKey[key] = Object.assign(transfersByKey[key] || {}, txfer);
+          if (!transfersByKey[key]) {
+            transfersByKey[key] = [txfer];
+          } else {
+            let didMerge = false;
+            for (let tbi = 0; tbi < transfersByKey[key].length; tbi += 1) {
+              if ((txfer.to && !transfersByKey[key][tbi].to) || (txfer.from && !transfersByKey[key][tbi].from)) {
+                didMerge = true;
+                transfersByKey[key][tbi] = Object.assign(transfersByKey[key][tbi] || {}, txfer);
+                break;
+              }
+            }
+            if (!didMerge) {
+              transfersByKey[key].push(txfer);
+            }
+          }
         }
       }
 
       const unmatchedFrom: Record<string, NetworkTransfer[]> = {};
       const unmatchedTo: Record<string, NetworkTransfer[]> = {};
       for (const key in transfersByKey) {
-        const txfer = transfersByKey[key];
-        if (!txfer.from) {
-          if (!unmatchedFrom[txfer.token]) unmatchedFrom[txfer.token] = [];
-          unmatchedFrom[txfer.token].push(txfer);
-          delete transfersByKey[key];
-        } else if (!txfer.to) {
-          if (!unmatchedTo[txfer.token]) unmatchedTo[txfer.token] = [];
-          unmatchedTo[txfer.token].push(txfer);
-          delete transfersByKey[key];
+        for (const txfer of transfersByKey[key]) {
+          if (!txfer.from) {
+            if (!unmatchedFrom[txfer.token]) unmatchedFrom[txfer.token] = [];
+            unmatchedFrom[txfer.token].push(txfer);
+            delete transfersByKey[key];
+          } else if (!txfer.to) {
+            if (!unmatchedTo[txfer.token]) unmatchedTo[txfer.token] = [];
+            unmatchedTo[txfer.token].push(txfer);
+            delete transfersByKey[key];
+          } else {
+            transfers.push(txfer);
+          }
         }
       }
 
@@ -167,19 +212,73 @@ export const SolanaTokenTransfers: SubTemplate = {
             unmatchedTo[token].sort((a, b) => (a.amount > b.amount ? 1 : -1));
             unmatchedFrom[token].forEach((um) => {
               um.from = unmatchedTo[token][0].from;
-              transfersByKey[`${token}-${um.amount.toString()}`] = um;
+
+              transfers.push(um);
             });
           }
         }
       }
-
-      transfers.push(...Object.values(transfersByKey));
     }
 
     return transfers;
   },
 
   tests: [
+    {
+      params: {
+        network: 'SOLANA',
+        walletAddress: 'DgC9bBDvJYeVyTqcp8nW5F5USNvxBiZ9NMoTUVy5UVPz',
+        contractAddress: '6MQpbiTC2YcogidTmKqMLK82qvE9z5QEm7EP3AEDpump',
+      },
+      payload: 'https://jiti.indexing.co/networks/solana/345871978',
+      output: [
+        {
+          amount: 10492578617n,
+          blockNumber: 324081557,
+          from: 'DgC9bBDvJYeVyTqcp8nW5F5USNvxBiZ9NMoTUVy5UVPz',
+          timestamp: '2025-06-10T12:06:56.000Z',
+          to: 'ChkRerg6X89xHYqV4iBqcboBdU1WA8Uvs9fp2yZrqbg',
+          token: '6MQpbiTC2YcogidTmKqMLK82qvE9z5QEm7EP3AEDpump',
+          tokenType: 'TOKEN',
+          transactionGasFee: 2506024n,
+          transactionHash: '65sABMeYatoyzsp1mL6UjAXoBqUdw47HR33ouvR9BFNipTNydqvWTt8PMbVqZZfvnX3TzwB3XSdk55cy3N6u8okR',
+        },
+        {
+          amount: 10492578617n,
+          blockNumber: 324081557,
+          from: 'DgC9bBDvJYeVyTqcp8nW5F5USNvxBiZ9NMoTUVy5UVPz',
+          timestamp: '2025-06-10T12:06:56.000Z',
+          to: '3shatpFgdVVwy8Pr723iE9L1fozzaXNdGYKtgrSwHYeJ',
+          token: '6MQpbiTC2YcogidTmKqMLK82qvE9z5QEm7EP3AEDpump',
+          tokenType: 'TOKEN',
+          transactionGasFee: 2506024n,
+          transactionHash: '65sABMeYatoyzsp1mL6UjAXoBqUdw47HR33ouvR9BFNipTNydqvWTt8PMbVqZZfvnX3TzwB3XSdk55cy3N6u8okR',
+        },
+        {
+          amount: 16788125787n,
+          blockNumber: 324081557,
+          from: 'DgC9bBDvJYeVyTqcp8nW5F5USNvxBiZ9NMoTUVy5UVPz',
+          timestamp: '2025-06-10T12:06:56.000Z',
+          to: 'GWPLjamb5ZxrGbTsYNWW7V3p1pAMryZSfaPFTdaEsWgC',
+          token: '6MQpbiTC2YcogidTmKqMLK82qvE9z5QEm7EP3AEDpump',
+          tokenType: 'TOKEN',
+          transactionGasFee: 2506024n,
+          transactionHash: '65sABMeYatoyzsp1mL6UjAXoBqUdw47HR33ouvR9BFNipTNydqvWTt8PMbVqZZfvnX3TzwB3XSdk55cy3N6u8okR',
+        },
+        {
+          amount: 4197031447n,
+          blockNumber: 324081557,
+          from: 'DgC9bBDvJYeVyTqcp8nW5F5USNvxBiZ9NMoTUVy5UVPz',
+          timestamp: '2025-06-10T12:06:56.000Z',
+          to: 'ANcfLC9JcbYbEWu71fE8973V8S6vD5hS98RNrz56hrT7',
+          token: '6MQpbiTC2YcogidTmKqMLK82qvE9z5QEm7EP3AEDpump',
+          tokenType: 'TOKEN',
+          transactionGasFee: 2506024n,
+          transactionHash: '65sABMeYatoyzsp1mL6UjAXoBqUdw47HR33ouvR9BFNipTNydqvWTt8PMbVqZZfvnX3TzwB3XSdk55cy3N6u8okR',
+        },
+      ],
+    },
+
     {
       params: {
         network: 'SOLANA',
@@ -390,5 +489,5 @@ export const SolanaTokenTransfers: SubTemplate = {
         },
       ],
     },
-  ].slice(0) as SubTemplate['tests'],
+  ],
 };
