@@ -14,7 +14,11 @@ async function runTests() {
       console.log('->', JSON.stringify(test.params));
       try {
         const payload =
-          typeof test.payload === 'string' ? await _fetch(test.payload).then((r) => r.json()) : test.payload;
+          typeof test.payload === 'string'
+            ? await _fetch(test.payload, { headers: { 'x-api-key': process.env.API_KEY as string } }).then((r) =>
+                r.json()
+              )
+            : test.payload;
 
         const output = templates[key].transform(payload, { params: test.params });
         assert.deepStrictEqual(output, test.output);

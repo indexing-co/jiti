@@ -1,14 +1,14 @@
 import { SubTemplate } from '../../types';
 import { NetworkTransfer } from './types';
 
-export const SolanaTokenTransfers: SubTemplate = {
-  match: (block) => ['SOLANA'].includes(block._network as string),
+export const SVMTokenTransfers: SubTemplate = {
+  match: (block) => ['SOLANA', 'SOLANA_DEVNET', 'ECLIPSE'].includes(block._network as string),
 
   transform(block) {
     let transfers: NetworkTransfer[] = [];
 
     for (const tx of block.transactions as unknown[]) {
-      const solanaTx = tx as {
+      const svmTx = tx as {
         meta: {
           fee: number;
           loadedAddresses: { readonly: string[]; writable: string[] };
@@ -32,21 +32,21 @@ export const SolanaTokenTransfers: SubTemplate = {
           signatures: string[];
         };
       };
-      const txHash = solanaTx.transaction.signatures[0];
+      const txHash = svmTx.transaction.signatures[0];
       const timestamp = block.blockTime ? new Date((block.blockTime as number) * 1000).toISOString() : null;
-      const allAccounts = solanaTx.transaction.message.accountKeys
-        .concat(solanaTx.meta.loadedAddresses.writable)
-        .concat(solanaTx.meta.loadedAddresses.readonly);
+      const allAccounts = svmTx.transaction.message.accountKeys
+        .concat(svmTx.meta.loadedAddresses.writable)
+        .concat(svmTx.meta.loadedAddresses.readonly);
 
-      let txFee = BigInt(solanaTx.meta.fee);
+      let txFee = BigInt(svmTx.meta.fee);
       if (txFee < BigInt(10)) {
         txFee = txFee * BigInt(Math.pow(10, 9));
       }
 
       const transfersByKey: Record<string, NetworkTransfer[]> = {};
-      for (const post of solanaTx.meta.postTokenBalances) {
+      for (const post of svmTx.meta.postTokenBalances) {
         let matched = false;
-        for (const pre of solanaTx.meta.preTokenBalances) {
+        for (const pre of svmTx.meta.preTokenBalances) {
           if (post.mint === pre.mint && post.owner === pre.owner) {
             let diff = BigInt(post.uiTokenAmount.amount) - BigInt(pre.uiTokenAmount.amount);
             if (diff === BigInt(0)) {
@@ -135,9 +135,9 @@ export const SolanaTokenTransfers: SubTemplate = {
         }
       }
 
-      for (let i = 0; i < solanaTx.meta.postBalances.length; i += 1) {
-        const post = solanaTx.meta.postBalances[i];
-        const pre = solanaTx.meta.preBalances[i];
+      for (let i = 0; i < svmTx.meta.postBalances.length; i += 1) {
+        const post = svmTx.meta.postBalances[i];
+        const pre = svmTx.meta.preBalances[i];
         if (post !== undefined && pre !== undefined && post !== pre) {
           let diff = BigInt(post) - BigInt(pre);
           if (diff < 0) {

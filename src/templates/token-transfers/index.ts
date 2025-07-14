@@ -8,7 +8,7 @@ import { FilecoinTokenTransfers } from './filecoin';
 import { NetworkTransfer } from './types';
 import { RippleTokenTransfers } from './ripple';
 import { SUITokenTransfers } from './sui';
-import { SolanaTokenTransfers } from './solana';
+import { SVMTokenTransfers } from './svm';
 import { StarknetTokenTransfers } from './starknet';
 import { StellarTokenTransfers } from './stellar';
 import { SubstrateTokenTransfers } from './substrate';
@@ -20,7 +20,7 @@ const SUB_TEMPLATES = [
   CardanoTokenTransfers,
   FilecoinTokenTransfers,
   RippleTokenTransfers,
-  SolanaTokenTransfers,
+  SVMTokenTransfers,
   StarknetTokenTransfers,
   StellarTokenTransfers,
   SubstrateTokenTransfers,
