@@ -1,4 +1,4 @@
-# Just In Time Indexing (JITI)
+# Just In Time Indexing Service (JITI)
 
 Open source template library for the JITI community.
 
