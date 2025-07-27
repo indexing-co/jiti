@@ -10,6 +10,7 @@ export function getAllTemplates() {
   return templateList.slice();
 }
 
+//Function to get a template by its key
 export function getTemplateByKey(key: string) {
   return templateList.slice().find((template) => template.key === key);
 }
