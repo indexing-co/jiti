@@ -40,7 +40,7 @@ export const AptosTokenTransfers: SubTemplate = {
         const {
           address: accountAddress,
           data: {
-            data: { balance, metadata },
+            data: { balance, metadata, owner },
             type: changeType,
           },
         } = changes[ci];
@@ -53,7 +53,7 @@ export const AptosTokenTransfers: SubTemplate = {
           const tokenAddress = metadata?.inner;
           if (!to || !tokenAddress || to === sender) continue;
           transfers.push({
-            amount: BigInt(balance), // @TODO: is this always correct?
+            amount: BigInt(balance),
             blockNumber: parseInt(block.block_height as string, 10),
             from: sender,
             to,
@@ -63,6 +63,21 @@ export const AptosTokenTransfers: SubTemplate = {
             transactionGasFee: gasUsed,
             transactionHash: tx.hash as string,
           });
+        } else if (owner?.length > 4) {
+          const payload = tx.payload as { function: string; arguments: string[] };
+          if (payload && payload.function === '0x1::aptos_account::transfer_coins') {
+            transfers.push({
+              amount: BigInt(payload.arguments[1]),
+              blockNumber: parseInt(block.block_height as string, 10),
+              from: sender,
+              to: owner,
+              timestamp,
+              token: null,
+              tokenType: 'NATIVE',
+              transactionGasFee: gasUsed,
+              transactionHash: tx.hash as string,
+            });
+          }
         }
       }
 
@@ -101,10 +116,7 @@ export const AptosTokenTransfers: SubTemplate = {
         if (!partial.from || !partial.to) {
           continue;
         }
-
-        const fromAddr = partial.from.length < 66 ? `0x0${partial.from.slice(2)}` : partial.from;
-        const toAddr = partial.to.length < 66 ? `0x0${partial.to.slice(2)}` : partial.to;
-        if (toAddr === '0x00') continue;
+        if (partial.to === '0x00') continue;
 
         let finalToken: string | null = null;
         let finalTokenType: NetworkTransfer['tokenType'] = 'TOKEN';
@@ -118,8 +130,8 @@ export const AptosTokenTransfers: SubTemplate = {
         transfers.push({
           amount: BigInt(partial.amount),
           blockNumber: parseInt(block.block_height as string, 10),
-          from: fromAddr,
-          to: toAddr,
+          from: partial.from,
+          to: partial.to,
           timestamp,
           token: finalToken,
           tokenType: finalTokenType,
@@ -129,7 +141,17 @@ export const AptosTokenTransfers: SubTemplate = {
       }
     }
 
-    return transfers;
+    return transfers
+      .filter((txfer) => txfer.to?.length > 4)
+      .map((txfer) => {
+        const fromAddr = txfer.from.length < 66 ? `0x${txfer.from.slice(2).padStart(64, '0')}` : txfer.from;
+        const toAddr = txfer.to.length < 66 ? `0x${txfer.to.slice(2).padStart(64, '0')}` : txfer.to;
+        return {
+          ...txfer,
+          from: fromAddr,
+          to: toAddr,
+        };
+      });
   },
 
   tests: [
@@ -214,6 +236,39 @@ export const AptosTokenTransfers: SubTemplate = {
           tokenType: 'TOKEN',
           transactionGasFee: 10877n,
           transactionHash: '0xc5a21679a947f986908b09091516bc3896245d974686ca2bd5709b7dbc5118fb',
+        },
+      ],
+    },
+
+    {
+      params: {
+        network: 'APTOS',
+        contractAddress: '',
+        walletAddress: '0x089556578008574ed3fddda6bc2ea6bee475b042e237bbb2f447c263086edcc5',
+      },
+      payload: 'https://jiti.indexing.co/networks/aptos/403873552',
+      output: [
+        {
+          amount: 19500000n,
+          blockNumber: 403873552,
+          from: '0x8509aa39bc09ea530b0481c573c0215781c01fa363c135996614bb11cf337703',
+          timestamp: '2025-08-11T11:07:54.286Z',
+          to: '0x089556578008574ed3fddda6bc2ea6bee475b042e237bbb2f447c263086edcc5',
+          token: '0xa',
+          tokenType: 'TOKEN',
+          transactionGasFee: 18n,
+          transactionHash: '0xa7d2d682f6940c1023d95ae8950b8d1dc0604abd34a4a2cc654f1be6f330ca44',
+        },
+        {
+          amount: 9500000n,
+          blockNumber: 403873552,
+          from: '0x8509aa39bc09ea530b0481c573c0215781c01fa363c135996614bb11cf337703',
+          timestamp: '2025-08-11T11:07:54.286Z',
+          to: '0x089556578008574ed3fddda6bc2ea6bee475b042e237bbb2f447c263086edcc5',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 18n,
+          transactionHash: '0xa7d2d682f6940c1023d95ae8950b8d1dc0604abd34a4a2cc654f1be6f330ca44',
         },
       ],
     },
