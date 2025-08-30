@@ -1,8 +1,9 @@
 import { SubTemplate } from '../../types';
+import blockToVM from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
 
 export const SVMTokenTransfers: SubTemplate = {
-  match: (block) => ['SOLANA', 'SOLANA_DEVNET', 'ECLIPSE'].includes(block._network as string),
+  match: (block) => blockToVM(block) === 'SVM',
 
   transform(block) {
     let transfers: NetworkTransfer[] = [];

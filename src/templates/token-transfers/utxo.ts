@@ -1,8 +1,9 @@
 import { SubTemplate } from '../../types';
+import blockToVM from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
 
 export const UTXOTokenTransfers: SubTemplate = {
-  match: (block) => ['BITCOIN', 'BITCOIN_TESTNET', 'LITECOIN', 'DOGECOIN'].includes(block._network as string),
+  match: (block) => blockToVM(block) === 'UTXO',
 
   transform(block) {
     let transfers: NetworkTransfer[] = [];

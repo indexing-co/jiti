@@ -1,8 +1,9 @@
 import { SubTemplate } from '../../types';
+import blockToVM from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
 
 export const CardanoTokenTransfers: SubTemplate = {
-  match: (block) => ['CARDANO'].includes(block._network as string),
+  match: (block) => blockToVM(block) === 'CARDANO',
 
   transform(block) {
     let transfers: NetworkTransfer[] = [];

@@ -1,8 +1,9 @@
 import { SubTemplate } from '../../types';
+import blockToVM from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
 
 export const AptosTokenTransfers: SubTemplate = {
-  match: (block) => ['APTOS', 'APTOS_TESTNET'].includes(block._network as string),
+  match: (block) => blockToVM(block) === 'APTOS',
 
   transform(block) {
     let transfers: NetworkTransfer[] = [];

@@ -1,11 +1,12 @@
 import { SubTemplate } from '../../types';
 import { NetworkTransfer } from './types';
 import { evmDecodeLogWithMetadata } from '../../utils';
+import blockToVM from '../../utils/block-to-vm';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 export const EVMTokenTransfers: SubTemplate = {
-  match: () => true,
+  match: (block) => blockToVM(block) === 'EVM',
 
   transform(block, _ctx) {
     const TOKEN_TYPES = (_ctx.params.tokenTypes as NetworkTransfer['tokenType'][]) || [];

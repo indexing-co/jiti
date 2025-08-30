@@ -1,8 +1,9 @@
 import { SubTemplate } from '../../types';
+import blockToVM from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
 
 export const StarknetTokenTransfers: SubTemplate = {
-  match: (block) => ['STARKNET'].includes(block._network as string),
+  match: (block) => blockToVM(block) === 'STARKNET',
 
   transform(block) {
     let transfers: NetworkTransfer[] = [];

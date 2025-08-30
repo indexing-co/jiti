@@ -1,8 +1,9 @@
 import { SubTemplate } from '../../types';
+import blockToVM from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
 
 export const RippleTokenTransfers: SubTemplate = {
-  match: (block) => ['RIPPLE'].includes(block._network as string),
+  match: (block) => blockToVM(block) === 'RIPPLE',
 
   transform(block) {
     let transfers: NetworkTransfer[] = [];

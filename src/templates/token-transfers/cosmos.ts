@@ -4,9 +4,10 @@ import { sha256 } from 'viem';
 
 import { SubTemplate } from '../../types';
 import { NetworkTransfer } from './types';
+import blockToVM from '../../utils/block-to-vm';
 
 export const CosmosTokenTransfers: SubTemplate = {
-  match: (block) => !!block.block,
+  match: (block) => blockToVM(block) === 'COSMOS',
 
   transform(block) {
     let transfers: NetworkTransfer[] = [];

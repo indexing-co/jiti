@@ -1,8 +1,9 @@
 import { SubTemplate } from '../../types';
+import blockToVM from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
 
 export const SubstrateTokenTransfers: SubTemplate = {
-  match: (block) => ['ASTAR', 'ENJIN', 'KUSAMA', 'POLKADOT', 'BITTENSOR'].includes(block._network as string),
+  match: (block) => blockToVM(block) === 'SUBSTRATE',
 
   transform(block) {
     let transfers: NetworkTransfer[] = [];
