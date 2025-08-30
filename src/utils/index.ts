@@ -1,3 +1,4 @@
+export * from './block-to-vm';
 export * from './evm-address-to-checksum';
 export * from './evm-chain-to-id';
 export * from './evm-decode-log';
