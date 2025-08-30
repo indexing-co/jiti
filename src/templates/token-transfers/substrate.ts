@@ -1,5 +1,5 @@
 import { SubTemplate } from '../../types';
-import blockToVM from '../../utils/block-to-vm';
+import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
 
 export const SubstrateTokenTransfers: SubTemplate = {

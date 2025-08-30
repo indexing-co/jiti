@@ -17,7 +17,7 @@ const PARTIAL_NETWORK_TO_VM_MAP = Object.entries(PARTIAL_VM_TO_NETWORK_MAP)
   .flat()
   .reduce((a, b) => ({ ...a, ...b }), {});
 
-export default function blockToVM(block: Record<string, unknown>): string {
+export function blockToVM(block: Record<string, unknown>): string {
   if (!block) return null;
 
   if (PARTIAL_NETWORK_TO_VM_MAP[block._network as string]) {

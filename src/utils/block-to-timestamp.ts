@@ -1,6 +1,6 @@
-import blockToVM from './block-to-vm';
+import { blockToVM } from './block-to-vm';
 
-export default function blockToTimestamp(block: Record<string, unknown>): Date {
+export function blockToTimestamp(block: Record<string, unknown>): Date {
   const vm = blockToVM(block);
 
   switch (vm) {

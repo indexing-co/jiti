@@ -1,7 +1,7 @@
 import { SubTemplate } from '../../types';
 import { NetworkTransfer } from './types';
 import { evmDecodeLogWithMetadata } from '../../utils';
-import blockToVM from '../../utils/block-to-vm';
+import { blockToVM } from '../../utils/block-to-vm';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 

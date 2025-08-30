@@ -19,6 +19,10 @@ async function runTests() {
                 r.json()
               )
             : test.payload;
+        if (!payload) {
+          console.log('Skipping test for missing payload');
+          continue;
+        }
 
         const output = templates[key].transform(payload, { params: test.params });
         assert.deepStrictEqual(output, test.output);

@@ -1,7 +1,7 @@
 import tronWeb3 from 'tronweb';
 
 import { Template } from '../types';
-import blockToVM from '../utils/block-to-vm';
+import { blockToVM } from '../utils/block-to-vm';
 import tokenTransfersTemplate from './token-transfers';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
