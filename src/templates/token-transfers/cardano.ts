@@ -10,7 +10,7 @@ export const CardanoTokenTransfers: SubTemplate = {
 
     const blockTimestamp = new Date((block.timestamp as number) * 1000).toISOString();
 
-    for (const tx of block.transactions as unknown[]) {
+    for (const tx of (block.transactions as unknown[]) || []) {
       const typedTx = tx as {
         transaction_identifier?: { hash?: string };
         operations?: {

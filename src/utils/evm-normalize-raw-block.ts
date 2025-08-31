@@ -17,7 +17,7 @@ export function normalizeEVMBlock(rawBlock: Record<string, unknown>): Record<str
   }
 
   rawBlock.transactions = (
-    rawBlock.transactions as { receipt: Record<string, unknown>; traces: Record<string, unknown>[] } & Record<
+    (rawBlock.transactions || []) as { receipt: Record<string, unknown>; traces: Record<string, unknown>[] } & Record<
       string,
       unknown
     >[]

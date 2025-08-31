@@ -12,7 +12,7 @@ export const RippleTokenTransfers: SubTemplate = {
       return [];
     }
 
-    for (const rawTx of block.transactions) {
+    for (const rawTx of block.transactions || []) {
       const typedTx = rawTx as {
         Account?: string;
         Amount?: string | { currency: string; issuer: string; value: string };

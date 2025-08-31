@@ -8,7 +8,7 @@ export const StellarTokenTransfers: SubTemplate = {
   transform(block) {
     let transfers: NetworkTransfer[] = [];
 
-    for (const tx of block.transactions as unknown[]) {
+    for (const tx of (block.transactions as unknown[]) || []) {
       const typedTx = tx as {
         hash: string;
         created_at: string;

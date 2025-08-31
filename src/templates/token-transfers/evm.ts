@@ -12,7 +12,7 @@ export const EVMTokenTransfers: SubTemplate = {
     const TOKEN_TYPES = (_ctx.params.tokenTypes as NetworkTransfer['tokenType'][]) || [];
     let transfers: NetworkTransfer[] = [];
 
-    for (const tx of block.transactions as any[]) {
+    for (const tx of (block.transactions as any[]) || []) {
       if (!tx.receipt) {
         continue;
       }

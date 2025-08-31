@@ -9,7 +9,7 @@ const PARTIAL_VM_TO_NETWORK_MAP = {
   SUI: ['SUI'],
   SVM: ['ECLIPSE', 'SOLANA', 'SOLANA_DEVNET'],
   TON: ['TON'],
-  UTXO: ['BTICOIN', 'BITCOIN_TESTNET', 'DOGECOIN', 'LITECOIN'],
+  UTXO: ['BITCOIN', 'BITCOIN_TESTNET', 'DOGECOIN', 'LITECOIN'],
 };
 
 const PARTIAL_NETWORK_TO_VM_MAP = Object.entries(PARTIAL_VM_TO_NETWORK_MAP)
@@ -20,8 +20,9 @@ const PARTIAL_NETWORK_TO_VM_MAP = Object.entries(PARTIAL_VM_TO_NETWORK_MAP)
 export function blockToVM(block: Record<string, unknown>): string {
   if (!block) return null;
 
-  if (PARTIAL_NETWORK_TO_VM_MAP[block._network as string]) {
-    return PARTIAL_NETWORK_TO_VM_MAP[block._network as string];
+  const network = (block._network as string).toUpperCase();
+  if (PARTIAL_NETWORK_TO_VM_MAP[network]) {
+    return PARTIAL_NETWORK_TO_VM_MAP[network];
   }
 
   if (!!block.block) {

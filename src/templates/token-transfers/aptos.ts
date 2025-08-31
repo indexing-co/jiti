@@ -8,7 +8,7 @@ export const AptosTokenTransfers: SubTemplate = {
   transform(block) {
     let transfers: NetworkTransfer[] = [];
 
-    for (const tx of block.transactions as Record<string, unknown>[]) {
+    for (const tx of (block.transactions as Record<string, unknown>[]) || []) {
       if (!tx?.events || !Array.isArray(tx.events)) {
         continue;
       }

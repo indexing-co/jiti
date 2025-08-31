@@ -22,7 +22,7 @@ const filterValuesTemplate: Template = {
     switch (vm) {
       case 'APTOS': {
         const values = new Set<string>();
-        for (const tx of block.transactions as Record<string, unknown>[]) {
+        for (const tx of (block.transactions as Record<string, unknown>[]) || []) {
           values.add(tx.sender as string);
           if (!Array.isArray(tx.events)) continue;
           for (const evt of tx.events as { guid: { account_address: string } }[]) {
@@ -146,10 +146,10 @@ const filterValuesTemplate: Template = {
 
       case 'STELLAR': {
         const values = new Set<string>();
-        for (const tx of block.transactions as {
+        for (const tx of (block.transactions as {
           source_account: string;
           operations: { from: string; to: string; asset_issuer: string; source_account: string }[];
-        }[]) {
+        }[]) || []) {
           values.add(tx.source_account);
           tx.operations?.forEach((op) => {
             values.add(op.from);
@@ -187,10 +187,10 @@ const filterValuesTemplate: Template = {
 
       case 'SUI': {
         const values = new Set<string>();
-        for (const tx of block.transactions as {
+        for (const tx of (block.transactions as {
           sender: string;
           balanceChanges: { owner: string; coinRepr: string }[];
-        }[]) {
+        }[]) || []) {
           values.add(tx.sender);
           tx.balanceChanges?.forEach((bc) => {
             values.add(bc.owner);
@@ -203,10 +203,10 @@ const filterValuesTemplate: Template = {
 
       case 'SVM': {
         const values = new Set<string>();
-        for (const tx of block.transactions as {
+        for (const tx of (block.transactions as {
           transaction: { message: { accountKeys: (string | { pubkey: string })[] } };
           meta: Record<string, { mint: string; owner: string }[]>;
-        }[]) {
+        }[]) || []) {
           tx.transaction.message.accountKeys.forEach((a) => values.add(typeof a === 'string' ? a : a.pubkey));
           tx.meta.postTokenBalances.concat(tx.meta.preTokenBalances).forEach((tb) => {
             values.add(tb.owner);

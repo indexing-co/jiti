@@ -12,7 +12,7 @@ export const StarknetTokenTransfers: SubTemplate = {
       return [];
     }
 
-    for (const tx of block.transactions) {
+    for (const tx of block.transactions || []) {
       const typedTx = tx as {
         transaction_hash: string;
         sender_address: string;
