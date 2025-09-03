@@ -67,11 +67,13 @@ const tokenTransfersTemplate: Template = {
       if (txfer.amount <= BigInt(0)) {
         return false;
       }
-      if (_ctx.params.contractAddress && _ctx.params.contractAddress !== txfer.token) {
-        return false;
-      }
-      if (_ctx.params.walletAddress && ![txfer.from, txfer.to].includes(_ctx.params.walletAddress as string)) {
-        return false;
+      if (_ctx?.params) {
+        if (_ctx.params.contractAddress && _ctx.params.contractAddress !== txfer.token) {
+          return false;
+        }
+        if (_ctx.params.walletAddress && ![txfer.from, txfer.to].includes(_ctx.params.walletAddress as string)) {
+          return false;
+        }
       }
 
       const key = `${txfer.transactionHash}-${txfer.from}-${txfer.to}-${txfer.amount}-${txfer.token}`;
