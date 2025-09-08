@@ -44,12 +44,14 @@ const filterValuesTemplate: Template = {
         for (const tx of block.txs_results as { events: { attributes: { value: string }[] }[] }[]) {
           for (const evt of tx.events || []) {
             for (const attr of evt.attributes || []) {
-              let val = attr.value;
+              const val = attr.value;
               if (typeof val === 'string' && val?.length > 35 && val?.length < 70) {
-                if (val.endsWith('=')) {
-                  val = atob(val);
-                }
                 values.add(val);
+                try {
+                  values.add(atob(val));
+                } catch (e) {
+                  // ignore this
+                }
               }
             }
           }
