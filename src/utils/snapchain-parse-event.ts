@@ -127,8 +127,9 @@ export function snapchainParseEvent(evt: HubEventMessage) {
       break;
     case 'MESSAGE_TYPE_USER_DATA_ADD': {
       processed._dataType = 'user_data';
-      const key = (getValueFromObject(data, 'user_data_body.type') as string)?.split('_').pop().toLowerCase();
-      if (key) {
+      let key = getValueFromObject(data, 'user_data_body.type') as string;
+      if (typeof key === 'string') {
+        key = key.trim().split('_').pop().toLowerCase();
         processed.data = {
           [key]: getValueFromObject(data, 'user_data_body.value'),
         };
