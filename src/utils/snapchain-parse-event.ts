@@ -45,14 +45,14 @@ function getValueFromObject(obj: Record<string, unknown>, path: string): unknown
   return getValueFromObject(obj[parts[0]] as Record<string, unknown>, parts.slice(1).join('.'));
 }
 
-function getMsgTimestamp(msg: Record<string, unknown>): Date {
+export function snapchainTimestampFromMsg(msg: Record<string, unknown>): Date {
   return new Date(
     parseInt((msg.timestamp as string) || (msg as { data: { timestamp: string } }).data?.timestamp) * 1000 +
       1609459200000
   );
 }
 
-export default function snapchainParseEvent(evt: HubEventMessage) {
+export function snapchainParseEvent(evt: HubEventMessage) {
   if (!evt?.data?.type) {
     return null;
   }
@@ -62,7 +62,7 @@ export default function snapchainParseEvent(evt: HubEventMessage) {
   const processed: Record<string, unknown> = {
     fid: data.fid,
     signer: evt.signer,
-    timestamp: getMsgTimestamp(data).toISOString(),
+    timestamp: snapchainTimestampFromMsg(data).toISOString(),
   };
 
   switch (data.type) {
@@ -127,10 +127,12 @@ export default function snapchainParseEvent(evt: HubEventMessage) {
       break;
     case 'MESSAGE_TYPE_USER_DATA_ADD': {
       processed._dataType = 'user_data';
-      const key = (getValueFromObject(data, 'user_data_body.type') as string).split('_').pop().toLowerCase();
-      processed.data = {
-        [key]: getValueFromObject(data, 'user_data_body.value'),
-      };
+      const key = (getValueFromObject(data, 'user_data_body.type') as string)?.split('_').pop().toLowerCase();
+      if (key) {
+        processed.data = {
+          [key]: getValueFromObject(data, 'user_data_body.value'),
+        };
+      }
       break;
     }
     case 'MESSAGE_TYPE_USERNAME_PROOF':

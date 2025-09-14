@@ -3,8 +3,7 @@ import tronWeb3 from 'tronweb';
 import { Template, TemplateTest } from '../types';
 import { blockToVM } from '../utils/block-to-vm';
 import tokenTransfersTemplate from './token-transfers';
-import { getFilterChanges } from 'viem/_types/actions/public/getFilterChanges';
-import snapchainParseEvent, { HubEventMessage } from '../utils/snapchain-parse-event';
+import { snapchainParseEvent, HubEventMessage } from '../utils/snapchain-parse-event';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
