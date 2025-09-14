@@ -51,7 +51,7 @@ const tokenTransfersTemplate: Template = {
     },
   ],
 
-  transform: (block, _ctx) => {
+  transform: (block, _ctx = { params: {} }) => {
     let transfers: NetworkTransfer[] = [];
 
     for (const sub of SUB_TEMPLATES.concat(UNIVERSAL_SUB_TEMPLATES)) {
