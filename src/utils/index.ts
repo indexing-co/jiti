@@ -5,3 +5,4 @@ export * from './evm-chain-to-id';
 export * from './evm-decode-log';
 export * from './evm-method-signature-to-hex';
 export * from './evm-normalize-raw-block';
+export * from './snapchain-parse-event';

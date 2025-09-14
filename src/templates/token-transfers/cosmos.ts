@@ -1,4 +1,4 @@
-import { decodeTxRaw, Registry } from '@cosmjs/proto-signing';
+import { DecodedTxRaw, decodeTxRaw, Registry } from '@cosmjs/proto-signing';
 import { defaultRegistryTypes as defaultStargateTypes } from '@cosmjs/stargate';
 import { sha256 } from 'viem';
 
@@ -21,7 +21,12 @@ export const CosmosTokenTransfers: SubTemplate = {
     const blockTimestamp = new Date(typedBlock.block.header.time).toISOString();
 
     for (const txRaw of typedBlock.block.data.txs || []) {
-      const decoded = decodeTxRaw(new Uint8Array(Buffer.from(txRaw, 'base64')));
+      let decoded: DecodedTxRaw;
+      try {
+        decoded = decodeTxRaw(new Uint8Array(Buffer.from(txRaw, 'base64')));
+      } catch (e) {
+        continue;
+      }
       const txHash = sha256(new Uint8Array(Buffer.from(txRaw, 'base64')));
       const transactionGasFee = BigInt(decoded.authInfo.fee?.amount?.[0]?.amount || '0');
 
@@ -33,8 +38,8 @@ export const CosmosTokenTransfers: SubTemplate = {
             blockNumber,
             from: decodedMsg.sender,
             to: decodedMsg.receiver,
-            amount: BigInt(decodedMsg.token.amount),
-            token: decodedMsg.token.denom,
+            amount: BigInt(decodedMsg.token?.amount || 0),
+            token: decodedMsg.token?.denom,
             tokenType: 'NATIVE',
             timestamp: blockTimestamp,
             transactionHash: txHash.slice(2).toUpperCase(),

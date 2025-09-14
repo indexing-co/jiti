@@ -1,9 +1,10 @@
 import tronWeb3 from 'tronweb';
 
-import { Template } from '../types';
+import { Template, TemplateTest } from '../types';
 import { blockToVM } from '../utils/block-to-vm';
 import tokenTransfersTemplate from './token-transfers';
 import { getFilterChanges } from 'viem/_types/actions/public/getFilterChanges';
+import snapchainParseEvent, { HubEventMessage } from '../utils/snapchain-parse-event';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
@@ -40,7 +41,7 @@ const filterValuesTemplate: Template = {
       }
 
       case 'COSMOS': {
-        for (const tx of block.txs_results as { events: { attributes: { value: string }[] }[] }[]) {
+        for (const tx of (block.txs_results || []) as { events: { attributes: { value: string }[] }[] }[]) {
           for (const evt of tx.events || []) {
             for (const attr of evt.attributes || []) {
               const val = attr.value;
@@ -55,6 +56,7 @@ const filterValuesTemplate: Template = {
             }
           }
         }
+        finalValues = Array.from(finalValues.values()).filter((v) => v?.length && /^[A-z0-9]+$/.test(v));
         break;
       }
 
@@ -115,6 +117,30 @@ const filterValuesTemplate: Template = {
               finalValues.add((tx[key] as Record<string, string>)?.issuer);
             }
           }
+        }
+        break;
+      }
+
+      case 'SNAPCHAIN': {
+        const typedBlock = block as {
+          shards?: {
+            transactions?: { user_messages: HubEventMessage[] }[];
+          }[];
+          transactions?: { user_messages: HubEventMessage[] }[];
+          processed?: { fid: number }[];
+        };
+
+        let parsed: Record<string, unknown>[] = [];
+        if (typedBlock.processed?.length) parsed = typedBlock.processed;
+        else {
+          const shards = (typedBlock.shards ? typedBlock.shards : [block]) as (typeof typedBlock)['shards'];
+          const messages = shards.map((s) => s.transactions?.map((t) => t.user_messages || []).flat()).flat();
+          parsed = messages.map(snapchainParseEvent);
+        }
+
+        for (const p of parsed) {
+          if (!p) continue;
+          finalValues.add(`${p.fid}`);
         }
         break;
       }
@@ -7414,7 +7440,189 @@ const filterValuesTemplate: Template = {
         '0xf000a96be506d1be0a696348aa7a52c0715d88e16593abca800b35cd70518490',
       ],
     },
-  ],
+
+    {
+      params: {},
+      payload: 'https://jiti.indexing.co/networks/cast_protocol/14863292',
+      output: [
+        '1023860',
+        '1039346',
+        '1060442',
+        '1078023',
+        '1100071',
+        '1115733',
+        '1136215',
+        '1149176',
+        '1158447',
+        '1181611',
+        '1190222',
+        '1190224',
+        '1293795',
+        '285998',
+        '291813',
+        '308094',
+        '315240',
+        '516359',
+        '549592',
+        '7637',
+        '773458',
+        '832276',
+        '957217',
+        '968720',
+      ],
+    },
+
+    {
+      params: {},
+      payload: 'https://jiti.indexing.co/networks/celestia/7496481',
+      output: [
+        'celestia10er54gljsfdt2c638ayndpahrr9590mncfcpl3',
+        'celestia17xpfvakm2amg962yls6f84z3kell8c5lpnjs3s',
+        'celestia1ldf3mhs0z5h5effkkyvc5scpy0xah00t98xfml',
+      ],
+    },
+
+    {
+      params: {},
+      payload: 'https://jiti.indexing.co/networks/injective/133343704',
+      output: [
+        '0x21f3eed62ddc64458129c0dcbff32b3f54c92084db787eb5cf7c20e69a1de033',
+        '0xe7df227480a497a8fe0811d4d9136e74fa8f83e9000074616c69732d75736474',
+        '1225173393peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        '1233796937peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        '1241634179peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        '1250417137peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        '14158133000peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        '14212603544peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        '1peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        '619992652peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        '620004155peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        '629994219peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        '630018486peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        '866763289peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        '899000000peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        '900000000peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        '902000000peggy0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        'inj12423gsxq64jax0ghtdcjdt30x3wtq6md63ec2x',
+        'inj12vpajtjf5cvmk2w737m0t8qwwkyjz0xgvxwyus',
+        'inj13hqsrfuehaj6d09fnyh5602trlztysymxrfjvs',
+        'inj13npv2370futcvy8j2qxmq59recxftufdjnljlq',
+        'inj144w02j59yh5jwf6ufe6pf3uasckw7cca833r6r',
+        'inj14vnmw2wee3xtrsqfvpcqg35jg9v7j2vdpzx0kk',
+        'inj14xvft0xh82cu44kvtj0jsyp8tssqanyufpn26n',
+        'inj15cqe6e94w4pjj3ycm2lmpaf8zc8qtxnm4j2e5m',
+        'inj15z55ukc7wd97ephadyc3nmdy7ts8ln99xwrchn',
+        'inj16mynjh2fpkm5970zxdwxr8pfh9zemhlrxczh7f',
+        'inj17n8kpnavff2xx86s9rgv8vjy64mkxagflyz6rr',
+        'inj17xpfvakm2amg962yls6f84z3kell8c5l6s5ye9',
+        'inj180qqam730rzf4efq0rk4c752eglxf3mlmza3xe',
+        'inj18t8vwhnsdk0u0h5pd7u7nnlmv8yx7r243vqk8e',
+        'inj19l0hx5qvghgcnxel0ju2vtuv3su74khnaees0c',
+        'inj19z7379t2cycrm8cmsfxx0p5f0cj5jpjzv726vz',
+        'inj19zpejr68rk8a00eavzp4hxz9m9hdlpqzdvsdeh',
+        'inj1ax24sjxls440qgpeagxtvl4rgxduvqk86tm8xd',
+        'inj1dd9qeprk8t3pjsxuv3ukz8xp0kk64tqm4m8vdq',
+        'inj1e7t9u68y7502pgzv24fcww5eq2asc8qecmgeck',
+        'inj1e9u3ljf356hgtgjr7380nupnj38trm5a0mv9re',
+        'inj1ew6kqpwyuhps6j5mpj47pyhcwulzm0drc7ttvy',
+        'inj1f7aaq5vlefhxh3hvmsxxd8dfnpd26mu3z6e797',
+        'inj1g9prkzgfjk0wgeg6uwx808u0p7h7d5j08ryfgw',
+        'inj1gnt4c7nfelz50ueqamxejh5hh76474xnj3gs3a',
+        'inj1hny8rk4455rkynj44l42jdss5sjvg3kvv58tdh',
+        'inj1jr7v0g7nvc9hadz3djyjpdqdmalxzu62997n0d',
+        'inj1ku8h6nkgp4hrf5nc5uukx30f2w6r4g2747x0z0',
+        'inj1l74zlrsd2ydyq6jupj6qxgu40dayjqxjzh8ywd',
+        'inj1r3tj245qe2hvxthqe3rxqsm8zss8sz6u0zpvst',
+        'inj1rknucfv74ul9xxxe2tzdw63w7zdzak0zdvvctj',
+        'inj1s9hhrdgzerf79w963gv6kez4hvp3jds5avsc6e',
+        'inj1snp7q6v56fvc0xcmzkmvgnf9pth8d86whe5hz2',
+        'inj1tfu0tmzffp7elc7tp7f5ale4zugagf28uwn890',
+        'inj1tpzed9lvfc44p3r5ev4llhv03ykfv0ev2tqjj0',
+        'inj1ul0jyayq5jt63lsgz82djymwwnaglqlfdw894u',
+        'inj1vs7wjfd489g69m498fgqa9lkkwqkl3zdcgx08r',
+        'inj1yl6nwv02m26pxnm7gxdetk63tgaxat5z39e37c',
+        'inj1znedx2afn3md4nu9wdnh7q6ksxyjfn3tpf9832',
+      ],
+    },
+
+    {
+      params: {},
+      payload: 'https://jiti.indexing.co/networks/aptos/431238610',
+      output: [
+        '0x03cce78e71ad0b34d22069d0f7941b84785dbcbbba10b569db052a7862639c3a',
+        '0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a',
+        '0x1ef2be2a92393c09ac5bc5e5b934a831611ebab5c4f2419d1d35f0552abec5f6',
+        '0x34b74d880555e3972e1e95c4e215f7d8a2653797d4bd949c8890b5f5e4a97040',
+        '0x381dad0b9af7bc810881258761d6ef2c35c9e3fb6891db5e4d008a7f090d56c9',
+        '0x3b38735644d0be8ac37ebd84a1e42fa5c2487495ef8782f6c694b1a147f82426',
+        '0x45c798416c158c1fd93fed2e40fbc2cd9f27bd640e6a6ed7ce58c9e4f413695b',
+        '0x46d8639fb27ff13f625a652b4dd3e81f3a5d5dc82c2b52b8432337b3baa5685a',
+        '0x5a96fab415f43721a44c5a761ecfcccc3dae9c21f34313f0e594b49d8d4564f4',
+        '0x621fd48a608f1823f2ad11552e387950c3eb9e405c4af6ced2e20faa2bcddade',
+        '0x623ceb896d7b03e8a7c8dd3af0f5a486ac025d466b92ead6fd6316add377bd60',
+        '0x9ec0f229bc76ed56f4488b6e152e7ab37d12cc4eb25ed73d11f4af79b32e8093',
+        '0xa13eae62dc5401fe6b016ece8360f81d0f87c20c1004ab09545dcfbfea9b6377',
+        '0xbc3557a52bcac15d470e6ffa421eeea105baffd8471d6aa2c0238380f363ccd3',
+        '0xc1f907d4bce871f9f0b78d8ce46cb62de2b14e2045338655312b9a861e5a9d4b',
+        '0xda116c9007ec7baa411e11e0fecbebe5618c3a4707b35d14f5a804e3ed377bcc',
+        '0xde2fb400352ecaa78ef076361b675a95f851f9b4943b7a07907a2b5c908385b8',
+        '0xe7f571ba7d04d6bc88f519289bc4f94a54fb25634128b3f9884d64904db32c12',
+      ],
+    },
+
+    {
+      params: {},
+      payload: 'https://jiti.indexing.co/networks/farcaster/2442805',
+      output: [
+        '1053494',
+        '1066546',
+        '1090343',
+        '1131909',
+        '1134046',
+        '1134910',
+        '1135798',
+        '1139813',
+        '1146560',
+        '1148283',
+        '1163463',
+        '1164305',
+        '1167631',
+        '1167984',
+        '1181162',
+        '1182140',
+        '1186458',
+        '1198272',
+        '1230161',
+        '1275123',
+        '1278167',
+        '12938',
+        '1322761',
+        '1332557',
+        '1334507',
+        '1337870',
+        '1337940',
+        '310644',
+        '319554',
+        '377148',
+        '430267',
+        '432992',
+        '448300',
+        '455743',
+        '467181',
+        '474644',
+        '511842',
+        '541835',
+        '618593',
+        '789371',
+        '864838',
+        '897445',
+        '902685',
+        '905676',
+        '957928',
+        '969084',
+      ],
+    },
+  ].slice(0) as TemplateTest[],
 };
 
 export default filterValuesTemplate;

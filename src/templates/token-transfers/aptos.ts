@@ -129,7 +129,7 @@ export const AptosTokenTransfers: SubTemplate = {
         }
 
         transfers.push({
-          amount: BigInt(partial.amount),
+          amount: BigInt(partial.amount || 0),
           blockNumber: parseInt(block.block_height as string, 10),
           from: partial.from,
           to: partial.to,
