@@ -40,15 +40,13 @@ export const AptosTokenTransfers: SubTemplate = {
         if (!changes[ci]?.data) continue;
         const {
           address: accountAddress,
-          data: {
-            data: { balance, metadata, owner },
-            type: changeType,
-          },
+          data: { data: changeData, type: changeType },
         } = changes[ci];
+        const { balance, metadata, owner } = changeData || {};
 
         if (changeType === '0x1::fungible_asset::FungibleStore') {
           if (!accountAddressMap[accountAddress]) {
-            accountAddressMap[accountAddress] = changes[ci + 1]?.data.data.owner;
+            accountAddressMap[accountAddress] = changes[ci + 1]?.data?.data?.owner;
           }
           const to = accountAddressMap[accountAddress];
           const tokenAddress = metadata?.inner;
