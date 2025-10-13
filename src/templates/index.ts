@@ -1,5 +1,5 @@
-import filterValuesTemplate from './filter-values';
-import rawTemplate from './raw';
-import tokenTransfersTemplate from './token-transfers';
+import filterValues from './filter-values';
+import raw from './raw';
+import tokenTransfers from './token-transfers';
 
-export const templates = [rawTemplate, tokenTransfersTemplate, filterValuesTemplate];
+export { filterValues, raw, tokenTransfers };

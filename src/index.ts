@@ -1,16 +1,15 @@
-import * as allTypes from './types';
+import * as types from './types';
 import * as allUtils from './utils';
-import { templates as templateList } from './templates';
+import * as allTemplates from './templates';
 
-export type Template = allTypes.Template;
+export { types };
 export const utils = { ...allUtils };
-export const templates = templateList.reduce((a, b) => ({ ...a, [b.key]: Object.assign({}, b) }), {});
+export const templates = { ...allTemplates };
 
 export function getAllTemplates() {
-  return templateList.slice();
+  return Object.values(allTemplates).slice();
 }
 
-// Function to get a template by its key
 export function getTemplateByKey(key: string) {
-  return templateList.slice().find((template) => template.key === key);
+  return templates[key];
 }
