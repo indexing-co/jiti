@@ -1,10 +1,9 @@
 import { templates as templateList } from './templates';
-import * as utils from './utils';
-import * as types from './types';
 
-const templates = templateList.reduce((a, b) => ({ ...a, [b.key]: Object.assign({}, b) }), {});
+export * as utils from './utils';
+export * as types from './types';
 
-export { utils, templates, types };
+export const templates = templateList.reduce((a, b) => ({ ...a, [b.key]: Object.assign({}, b) }), {});
 
 export function getAllTemplates() {
   return templateList.slice();
