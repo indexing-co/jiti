@@ -190,7 +190,7 @@ export const SVMTokenTransfers: SubTemplate = {
       const unmatchedTo: Record<string, NetworkTransfer[]> = {};
       for (const key in transfersByKey) {
         for (const txfer of transfersByKey[key]) {
-          if (!txfer.from) {
+          if (!txfer.from && txfer.token !== 'So11111111111111111111111111111111111111112') {
             if (!unmatchedFrom[txfer.token]) unmatchedFrom[txfer.token] = [];
             unmatchedFrom[txfer.token].push(txfer);
             delete transfersByKey[key];
@@ -487,6 +487,36 @@ export const SVMTokenTransfers: SubTemplate = {
           tokenType: 'NATIVE',
           transactionGasFee: 191568n,
           transactionHash: '5usAzMSrENJQscoRdxi48n22aMcFmJ1U7f2yGmwUk8AHSFCzLfRtBP7gVnsZbe7Jy9SG2VoeVbVSoVvu43tsdvm1',
+        },
+      ],
+    },
+    {
+      params: {
+        network: 'SOLANA',
+        walletAddress: 'moAGAQftMo19RY6YqStNdiDhNpejJaeNWgv5oczbp8U',
+      },
+      payload: 'https://jiti.indexing.co/networks/solana/375557379',
+      output: [
+        {
+          amount: 9990000n,
+          blockNumber: 353720952,
+          timestamp: '2025-10-24T20:23:09.000Z',
+          to: 'moAGAQftMo19RY6YqStNdiDhNpejJaeNWgv5oczbp8U',
+          token: 'So11111111111111111111111111111111111111112',
+          tokenType: 'TOKEN',
+          transactionGasFee: 5000n,
+          transactionHash: '3UCamcERYHN9JrgwPqUshvabv2f7uHpbStwfG7bbPFsVSSjQrK21Q9joj7gNLD6Ab5XHehkaUKtYp7Vptv7Kswv3',
+        },
+        {
+          amount: 9990000n,
+          blockNumber: 353720952,
+          from: 'moAGAQftMo19RY6YqStNdiDhNpejJaeNWgv5oczbp8U',
+          timestamp: '2025-10-24T20:23:09.000Z',
+          to: '5uQC5CfgqGP8B8bG64RATmZXfUKiHf1XRbYHkVKPwwny',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 5000n,
+          transactionHash: '3UCamcERYHN9JrgwPqUshvabv2f7uHpbStwfG7bbPFsVSSjQrK21Q9joj7gNLD6Ab5XHehkaUKtYp7Vptv7Kswv3',
         },
       ],
     },
