@@ -36,10 +36,10 @@ export const CosmosTokenTransfers: SubTemplate = {
           const decodedMsg = registry.decode(message);
           transfers.push({
             blockNumber,
-            from: decodedMsg.sender,
-            to: decodedMsg.receiver,
-            amount: BigInt(decodedMsg.token?.amount || 0),
-            token: decodedMsg.token?.denom,
+            from: decodedMsg.sender || decodedMsg.fromAddress,
+            to: decodedMsg.receiver || decodedMsg.toAddress,
+            amount: BigInt(decodedMsg.token?.amount || decodedMsg.amount?.find((a) => a?.amount)?.amount || 0),
+            token: decodedMsg.token?.denom || decodedMsg.amount?.find((a) => a?.denom)?.denom,
             tokenType: 'NATIVE',
             timestamp: blockTimestamp,
             transactionHash: txHash.slice(2).toUpperCase(),
