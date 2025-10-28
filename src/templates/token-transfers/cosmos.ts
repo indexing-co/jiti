@@ -35,15 +35,16 @@ export const CosmosTokenTransfers: SubTemplate = {
         if (['/ibc.applications.transfer.v1.MsgTransfer', '/cosmos.bank.v1beta1.MsgSend'].includes(message.typeUrl)) {
           const decodedMsg = registry.decode(message);
           transfers.push({
+            amount: BigInt(decodedMsg.token?.amount || decodedMsg.amount?.find((a) => a?.amount)?.amount || 0),
             blockNumber,
             from: decodedMsg.sender || decodedMsg.fromAddress,
+            memo: decodedMsg.memo,
+            timestamp: blockTimestamp,
             to: decodedMsg.receiver || decodedMsg.toAddress,
-            amount: BigInt(decodedMsg.token?.amount || decodedMsg.amount?.find((a) => a?.amount)?.amount || 0),
             token: decodedMsg.token?.denom || decodedMsg.amount?.find((a) => a?.denom)?.denom,
             tokenType: 'NATIVE',
-            timestamp: blockTimestamp,
-            transactionHash: txHash.slice(2).toUpperCase(),
             transactionGasFee,
+            transactionHash: txHash.slice(2).toUpperCase(),
           });
         }
       }
@@ -56,21 +57,21 @@ export const CosmosTokenTransfers: SubTemplate = {
     {
       params: {
         network: 'COSMOS',
-        walletAddress: 'cosmos1x4qvmtcfc02pklttfgxzdccxcsyzklrxavteyz',
-        contractAddress: 'ibc/F663521BF1836B00F5F177680F74BFB9A8B5654A694D0D2BC249E03CF2509013',
+        walletAddress: 'cosmos1q9d0rjr687a37lckllujf6dmtnympx9g5ca37u',
       },
-      payload: 'https://jiti.indexing.co/networks/cosmos/24419691',
+      payload: 'https://jiti.indexing.co/networks/cosmos/28168958',
       output: [
         {
-          blockNumber: 24419691,
-          from: 'cosmos1x4qvmtcfc02pklttfgxzdccxcsyzklrxavteyz',
-          to: 'noble1x4qvmtcfc02pklttfgxzdccxcsyzklrx4073uv',
-          amount: 500000n,
-          token: 'ibc/F663521BF1836B00F5F177680F74BFB9A8B5654A694D0D2BC249E03CF2509013',
+          amount: 31684895n,
+          blockNumber: 28168958,
+          from: 'cosmos1q9d0rjr687a37lckllujf6dmtnympx9g5ca37u',
+          memo: '{"wasm":{"contract":"neutron1zvesudsdfxusz06jztpph4d3h5x6veglqsspxns2v2jqml9nhywskcc923","msg":{"swap_and_action":{"user_swap":{"swap_exact_asset_in":{"swap_venue_name":"neutron-duality","operations":[{"pool":"564172","denom_in":"ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9","denom_out":"ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81"},{"pool":"495849","denom_in":"ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81","denom_out":"ibc/376222D6D9DAE23092E29740E56B758580935A6D77C24C2ABD57A6A78A1F3955"}]}},"min_asset":{"native":{"denom":"ibc/376222D6D9DAE23092E29740E56B758580935A6D77C24C2ABD57A6A78A1F3955","amount":"817899530"}},"timeout_timestamp":1761673107828834380,"post_swap_action":{"ibc_transfer":{"ibc_info":{"source_channel":"channel-10","receiver":"osmo1q9d0rjr687a37lckllujf6dmtnympx9gurwpgw","fee":{"recv_fee":[],"ack_fee":[{"denom":"untrn","amount":"100000"}],"timeout_fee":[{"denom":"untrn","amount":"100000"}]},"memo":"","recover_address":"neutron1q9d0rjr687a37lckllujf6dmtnympx9gs85nym"},"fee_swap":{"swap_venue_name":"neutron-duality","operations":[{"pool":"2769551","denom_in":"ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9","denom_out":"ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81"},{"pool":"717963","denom_in":"ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81","denom_out":"untrn"}],"refund_address":"neutron1q9d0rjr687a37lckllujf6dmtnympx9gs85nym"}}},"affiliates":[{"basis_points_fee":"60","address":"neutron15tw0qy5sspq2sgef77vhhykhtphlrv57ju78e4"},{"basis_points_fee":"15","address":"neutron14gf6xslwe9phn2z965t4dcu7vchhthfgqw99g3"}]}}}}',
+          timestamp: '2025-10-28T17:33:35.080Z',
+          to: 'neutron1zvesudsdfxusz06jztpph4d3h5x6veglqsspxns2v2jqml9nhywskcc923',
+          token: 'uatom',
           tokenType: 'NATIVE',
-          timestamp: '2025-02-14T21:48:22.809Z',
-          transactionHash: '963D4D7BB59C1280F58A7ECA2F1934E2AA005109A989193C815C7B98EDCD7445',
-          transactionGasFee: 4860n,
+          transactionGasFee: 2201n,
+          transactionHash: 'DA3680301DEB2C5D4F12F695C252CB75612792952AD12A699C80B261E8A029E3',
         },
       ],
     },

@@ -3,6 +3,7 @@ export type NetworkTransfer = {
   blockNumber: number;
   from: string;
   index?: string;
+  memo?: string | number;
   timestamp: string;
   to: string;
   token?: string;

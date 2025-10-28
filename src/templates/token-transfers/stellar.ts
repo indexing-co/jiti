@@ -13,6 +13,7 @@ export const StellarTokenTransfers: SubTemplate = {
         hash: string;
         created_at: string;
         fee_charged: string;
+        memo: string;
         operations: {
           type: string;
           from: string;
@@ -28,6 +29,7 @@ export const StellarTokenTransfers: SubTemplate = {
             amount: BigInt(op.amount.replace('.', '')),
             blockNumber: block.sequence as number,
             from: op.from,
+            memo: typedTx.memo,
             timestamp: typedTx.created_at,
             to: op.to,
             token: op.asset_type === 'native' ? null : op.asset_issuer,
@@ -46,21 +48,33 @@ export const StellarTokenTransfers: SubTemplate = {
     {
       params: {
         network: 'STELLAR',
-        walletAddress: 'GA5KLTNAWV27IOTBX5PKUOMVWFMLX4X7CPMQJ4QLR3G266MMVL7NMA4X',
-        contractAddress: 'GC4Z2TDXU4GXVLHOS5P5SU6HKBCP7NKN4TJ5ZGTVRBW7MCBZTU7SNUSA',
+        walletAddress: 'GC5HUFIKZBK5XRNOBPXR4PBR3PWR26GP5UFRKSCOOOIENYVSF3NMA23U',
       },
-      payload: 'https://jiti.indexing.co/networks/stellar/51720546',
+      payload: 'https://jiti.indexing.co/networks/stellar/59592273',
       output: [
         {
-          amount: 150000n,
-          blockNumber: 51720546,
-          from: 'GA5KLTNAWV27IOTBX5PKUOMVWFMLX4X7CPMQJ4QLR3G266MMVL7NMA4X',
-          timestamp: '2024-05-18T04:41:39Z',
-          to: 'GC4Z2TDXU4GXVLHOS5P5SU6HKBCP7NKN4TJ5ZGTVRBW7MCBZTU7SNUSA',
-          token: 'GC4Z2TDXU4GXVLHOS5P5SU6HKBCP7NKN4TJ5ZGTVRBW7MCBZTU7SNUSA',
+          amount: 651200000n,
+          blockNumber: 59592273,
+          from: 'GC5HUFIKZBK5XRNOBPXR4PBR3PWR26GP5UFRKSCOOOIENYVSF3NMA23U',
+          memo: '315004227',
+          timestamp: '2025-10-28T17:24:17Z',
+          to: 'GABFQIK63R2NETJM7T673EAMZN4RJLLGP3OFUEJU5SZVTGWUKULZJNL6',
+          token: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
           tokenType: 'TOKEN',
-          transactionGasFee: 100n,
-          transactionHash: '4fb2441210cbe87f5003abdfa86f03bafa54f789ed041feccbda0bd054297c4d',
+          transactionGasFee: 200n,
+          transactionHash: 'a0e5f0cbc64a13816db1d8428c4e2f849ed9ec475b80d4cbd23a8119b1b1c010',
+        },
+        {
+          amount: 4445100000n,
+          blockNumber: 59592273,
+          from: 'GAUA7XL5K54CC2DDGP77FJ2YBHRJLT36CPZDXWPM6MP7MANOGG77PNJU',
+          memo: undefined,
+          timestamp: '2025-10-28T17:24:17Z',
+          to: 'GC5HUFIKZBK5XRNOBPXR4PBR3PWR26GP5UFRKSCOOOIENYVSF3NMA23U',
+          token: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+          tokenType: 'TOKEN',
+          transactionGasFee: 300n,
+          transactionHash: 'c554aed41145304e03c0877c9de526cdcb8a8255c9bf156ff0dec202ab12e20d',
         },
       ],
     },

@@ -17,6 +17,7 @@ export const RippleTokenTransfers: SubTemplate = {
         Account?: string;
         Amount?: string | { currency: string; issuer: string; value: string };
         Destination?: string;
+        DestinationTag?: number;
         Fee?: string;
         hash?: string;
         TransactionType?: string;
@@ -47,6 +48,7 @@ export const RippleTokenTransfers: SubTemplate = {
         amount: parsedAmount,
         blockNumber: parseInt(block.ledger_index as string, 10),
         from: typedTx.Account ?? 'UNKNOWN',
+        memo: typedTx.DestinationTag,
         timestamp: block.close_time_iso ? (block.close_time_iso as string) : null,
         to: typedTx.Destination ?? 'UNKNOWN',
         token: tokenSymbol,
@@ -63,21 +65,22 @@ export const RippleTokenTransfers: SubTemplate = {
     {
       params: {
         network: 'RIPPLE',
-        walletAddress: 'rUUgoiJmjTPEbxfZ4RsS9pVS9Kv813Wpui',
+        walletAddress: 'rnDGxzUM2snx58Bvyn72xhJKqvkDxo2tQm',
         contractAddress: '',
       },
       payload: 'https://jiti.indexing.co/networks/ripple/88104659',
       output: [
         {
-          amount: 238n,
+          amount: 43110000n,
           blockNumber: 88104659,
-          from: 'rMAGnTv4eMWktZnhKa5cHcDiY84ZiKUaQm',
+          from: 'rMvCasZ9cohYrSZRNYPTZfoaaSUQMfgQ8G',
+          memo: 30195674,
           timestamp: '2024-05-19T22:18:52Z',
-          to: 'rUUgoiJmjTPEbxfZ4RsS9pVS9Kv813Wpui',
+          to: 'rnDGxzUM2snx58Bvyn72xhJKqvkDxo2tQm',
           token: 'XRP',
           tokenType: 'NATIVE',
-          transactionGasFee: 15n,
-          transactionHash: '03564E6109261CDE73FCC5062C2A0A70F365CB1A0F9408C065B60EC3E94E4DBF',
+          transactionGasFee: 10000n,
+          transactionHash: 'B32A6A5455777283212407FBD8CCA701505C654E5F4ADFFBE9D4D22F00889D87',
         },
       ],
     },
