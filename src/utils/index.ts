@@ -1,4 +1,5 @@
 export * from './block-to-beat';
+export * from './block-to-transaction-hashes';
 export * from './block-to-timestamp';
 export * from './block-to-vm';
 export * from './evm-address-to-checksum';
