@@ -10,7 +10,7 @@ export function blockToTimestamp(block: Record<string, unknown>): Date {
       );
     }
     case 'CARDANO': {
-      return new Date((block.timestamp as number) * 1000);
+      return new Date(block.timestamp as number);
     }
     case 'COSMOS': {
       return new Date((block as { block: { header: { time: string } } }).block.header.time);

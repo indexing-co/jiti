@@ -8,7 +8,7 @@ export const CardanoTokenTransfers: SubTemplate = {
   transform(block) {
     let transfers: NetworkTransfer[] = [];
 
-    const blockTimestamp = new Date((block.timestamp as number) * 1000).toISOString();
+    const blockTimestamp = new Date(block.timestamp as number).toISOString();
 
     for (const tx of (block.transactions as unknown[]) || []) {
       const typedTx = tx as {
@@ -89,7 +89,7 @@ export const CardanoTokenTransfers: SubTemplate = {
           amount: 1110000n,
           blockNumber: 11443286,
           from: 'addr1qymdv285few5tyqvya86rl97r9e608njs37shfew6l2nn473aw2pcnrcvfwfgg2dnew99m4tjj0apsu7232w2euzwpysndh0h3',
-          timestamp: '+057068-01-19T05:23:20.000Z',
+          timestamp: '2025-02-05T03:34:53.000Z',
           to: 'addr1q9syxu908lef7r6rsvk0h7gsx3rxj22cuykgx2a2l4hcfd8e9y2e9vtv4w9dyej96w99wwj8hwgc273862lk6a3vt30qjjrund',
           token: null,
           tokenType: 'NATIVE',

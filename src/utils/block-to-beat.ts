@@ -38,7 +38,7 @@ export function blockToBeat(block: Record<string, unknown>): number {
       return parseInt(block.sequence as string, 10);
     }
     case 'SVM': {
-      return block.blockHeight as number;
+      return (block.parentSlot as number) + 1;
     }
     case 'TON': {
       return block.seqno as number;

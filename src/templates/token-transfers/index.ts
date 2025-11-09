@@ -74,9 +74,12 @@ const tokenTransfersTemplate: Template = {
         if (_ctx.params.walletAddress && ![txfer.from, txfer.to].includes(_ctx.params.walletAddress as string)) {
           return false;
         }
+        if (_ctx.params.transactionHash && txfer.transactionHash !== _ctx.params.transactionHash) {
+          return false;
+        }
       }
 
-      const key = `${txfer.transactionHash}-${txfer.from}-${txfer.to}-${txfer.amount}-${txfer.token}`;
+      const key = `${txfer.transactionHash}-${txfer.from}-${txfer.to}-${txfer.amount}-${txfer.token}-${txfer.index}`;
 
       if (seenTransfers.has(key)) {
         return false;
