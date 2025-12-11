@@ -6,6 +6,10 @@
   "main": "dist/main.js",
   "module": "dist/module.js",
   "types": "dist/types.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/indexing-co/jiti"
+  },
   "scripts": {
     "build": "rm -rf dist .parcel-cache && parcel build --dist-dir dist",
     "lint": "prettier --write **.ts && eslint .",
