@@ -8,7 +8,6 @@ const SYSTEM_PROGRAM = '11111111111111111111111111111111';
 const WSOL_MINT = 'So11111111111111111111111111111111111111112';
 const SPL_TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 const SPL_TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
-const ASSOCIATED_TOKEN_ACCOUNT_PROGRAM = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
 
 export const SVMTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'SVM',
@@ -115,14 +114,15 @@ export const SVMTokenTransfers: SubTemplate = {
             // TRANSFER, TRANSFER CHECKED
             if (
               (instSig.startsWith('3,') && inst.accounts.length === 3) ||
-              (instSig.startsWith('12,') && inst.accounts.length === 4)
+              (instSig.startsWith('12,') && inst.accounts.length >= 4)
             ) {
               const amountData = Buffer.from(instData).slice(1, 9);
               if (amountData.length < 8) continue;
               const amount = BigInt(amountData.readBigUInt64LE(0).toString());
 
               const fromIdx = inst.accounts[0];
-              const toIdx = inst.accounts[inst.accounts.length - 2];
+              const toIdx = inst.accounts.length === 5 ? inst.accounts[4] : inst.accounts[inst.accounts.length - 2];
+
               let from = createdAccountsToOwner[allAccounts[fromIdx]];
               let to = createdAccountsToOwner[allAccounts[toIdx]];
               let mint: string;
@@ -138,9 +138,8 @@ export const SVMTokenTransfers: SubTemplate = {
                 if (from && to && mint) break;
               }
 
-              // @NOTE: should improve this - currently we assume unknown accounts belong to the signer
-              if (!from) from = signer;
-              if (!to) to = signer;
+              if (!from) from = allAccounts[fromIdx] || signer;
+              if (!to) to = allAccounts[toIdx] || signer;
 
               txTransfers.push({
                 amount,
@@ -1476,6 +1475,40 @@ export const SVMTokenTransfers: SubTemplate = {
           tokenType: 'NATIVE',
           transactionGasFee: 5000n,
           transactionHash: '2asCG9FQdkcbRiX56dCoUMByE871biTZmctv6DBo5EYMkJWCrJ4hNVBkrFGwjQCK2T6XPPeLkd8hWkji9WqjUxF6',
+        },
+      ],
+    },
+
+    {
+      params: {
+        network: 'SOLANA',
+        transactionHash: '4RA82Xf6otGz4PLaLYkLqMUQPnzgmQS3ZE5fN1zz2wMo1Vuew4CeCzAcStfCHSNGxE2P9StpUxiTe1kdn5B755WY',
+      },
+      payload: 'https://jiti.indexing.co/networks/solana/387132087',
+      output: [
+        {
+          amount: 106500n,
+          blockNumber: 387132087,
+          from: '2AQdpHJ2JpcEgPiATUXjQxA8QmafFegfQwSLWSprPicm',
+          index: '0',
+          timestamp: '2025-12-16T17:55:26.000Z',
+          to: null,
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 106500n,
+          transactionHash: '4RA82Xf6otGz4PLaLYkLqMUQPnzgmQS3ZE5fN1zz2wMo1Vuew4CeCzAcStfCHSNGxE2P9StpUxiTe1kdn5B755WY',
+        },
+        {
+          amount: 1000000n,
+          blockNumber: 387132087,
+          from: '2AQdpHJ2JpcEgPiATUXjQxA8QmafFegfQwSLWSprPicm',
+          index: '1',
+          timestamp: '2025-12-16T17:55:26.000Z',
+          to: '6uZakWzCdFF8H2Tk8WVHQdkkaLVLR9wLCrU8ikCj8uE3',
+          token: '2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo',
+          tokenType: 'TOKEN',
+          transactionGasFee: 106500n,
+          transactionHash: '4RA82Xf6otGz4PLaLYkLqMUQPnzgmQS3ZE5fN1zz2wMo1Vuew4CeCzAcStfCHSNGxE2P9StpUxiTe1kdn5B755WY',
         },
       ],
     },
