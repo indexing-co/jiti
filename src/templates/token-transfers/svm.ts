@@ -81,7 +81,7 @@ export const SVMTokenTransfers: SubTemplate = {
       for (let idx = 0; idx < svmTx.transaction.message.instructions.length; idx += 1) {
         allUntypedInstructions.push({ ...svmTx.transaction.message.instructions[idx], index: idx });
         allUntypedInstructions.push(
-          ...svmTx.meta.innerInstructions
+          ...(svmTx.meta.innerInstructions || [])
             .filter((ii) => ii.index === idx)
             .map((ii) => ii.instructions.map((i, subIdx) => ({ ...i, rootIndex: ii.index, index: subIdx })))
             .flat()
