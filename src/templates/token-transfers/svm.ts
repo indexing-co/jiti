@@ -249,6 +249,12 @@ export const SVMTokenTransfers: SubTemplate = {
                 previousAccountsClose[from] += wSolAmount;
               }
             }
+
+            // InitializeAccount3
+            else if (instSig.startsWith('18,') && inst.accounts.length === 2) {
+              const newOwner = bs58.encode(instData.slice(1));
+              createdAccountsToOwner[matchingAccounts[0]] = newOwner;
+            }
           }
 
           // SOL Transfers
@@ -1509,6 +1515,112 @@ export const SVMTokenTransfers: SubTemplate = {
           tokenType: 'TOKEN',
           transactionGasFee: 106500n,
           transactionHash: '4RA82Xf6otGz4PLaLYkLqMUQPnzgmQS3ZE5fN1zz2wMo1Vuew4CeCzAcStfCHSNGxE2P9StpUxiTe1kdn5B755WY',
+        },
+      ],
+    },
+
+    {
+      params: {
+        network: 'SOLANA',
+        transactionHash: '5Rndx2MH75VSy5mviPwV6UjF8ESNsvQPfRsnDUxKEA8g9e4RDDs34LSsGA3PEqPiKHctP7NciPVRAJQnAh5X5RYU',
+      },
+      payload: 'https://jiti.indexing.co/networks/solana/395248197',
+      output: [
+        {
+          amount: 5201n,
+          blockNumber: 395248197,
+          from: 'BHXVYWyV4CF7quA3U8CWwe1xA9FPmXqM9JovRAZBNj7d',
+          index: '0',
+          timestamp: '2026-01-22T19:16:53.000Z',
+          to: null,
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 5201n,
+          transactionHash: '5Rndx2MH75VSy5mviPwV6UjF8ESNsvQPfRsnDUxKEA8g9e4RDDs34LSsGA3PEqPiKHctP7NciPVRAJQnAh5X5RYU',
+        },
+        {
+          amount: 134039280n,
+          blockNumber: 395248197,
+          from: 'BHXVYWyV4CF7quA3U8CWwe1xA9FPmXqM9JovRAZBNj7d',
+          index: '3',
+          timestamp: '2026-01-22T19:16:53.000Z',
+          to: '7scB8thHPL1r9Qn2p6uVLCBXXnZiX9gZGCsZcufdyVi1',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 5201n,
+          transactionHash: '5Rndx2MH75VSy5mviPwV6UjF8ESNsvQPfRsnDUxKEA8g9e4RDDs34LSsGA3PEqPiKHctP7NciPVRAJQnAh5X5RYU',
+        },
+        {
+          amount: 132000000n,
+          blockNumber: 395248197,
+          from: 'BHXVYWyV4CF7quA3U8CWwe1xA9FPmXqM9JovRAZBNj7d',
+          index: '5-2',
+          timestamp: '2026-01-22T19:16:53.000Z',
+          to: '4xZYFLR2eyo2vrfsGuJZEPsgZafamE9fFPJ5wYJDW6nU',
+          token: 'So11111111111111111111111111111111111111112',
+          tokenType: 'TOKEN',
+          transactionGasFee: 5201n,
+          transactionHash: '5Rndx2MH75VSy5mviPwV6UjF8ESNsvQPfRsnDUxKEA8g9e4RDDs34LSsGA3PEqPiKHctP7NciPVRAJQnAh5X5RYU',
+        },
+        {
+          amount: 105124789n,
+          blockNumber: 395248197,
+          from: 'BjVanGXAEmHL677Lj7ywusqE7Uaop3sqYb7kiL2LFiK9',
+          index: '5-3',
+          timestamp: '2026-01-22T19:16:53.000Z',
+          to: 'BHXVYWyV4CF7quA3U8CWwe1xA9FPmXqM9JovRAZBNj7d',
+          token: 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',
+          tokenType: 'TOKEN',
+          transactionGasFee: 5201n,
+          transactionHash: '5Rndx2MH75VSy5mviPwV6UjF8ESNsvQPfRsnDUxKEA8g9e4RDDs34LSsGA3PEqPiKHctP7NciPVRAJQnAh5X5RYU',
+        },
+        {
+          amount: 2039280n,
+          blockNumber: 395248197,
+          from: '7scB8thHPL1r9Qn2p6uVLCBXXnZiX9gZGCsZcufdyVi1',
+          index: '6',
+          timestamp: '2026-01-22T19:16:53.000Z',
+          to: 'BHXVYWyV4CF7quA3U8CWwe1xA9FPmXqM9JovRAZBNj7d',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 5201n,
+          transactionHash: '5Rndx2MH75VSy5mviPwV6UjF8ESNsvQPfRsnDUxKEA8g9e4RDDs34LSsGA3PEqPiKHctP7NciPVRAJQnAh5X5RYU',
+        },
+        {
+          amount: 132000000n,
+          blockNumber: 395248197,
+          from: '7scB8thHPL1r9Qn2p6uVLCBXXnZiX9gZGCsZcufdyVi1',
+          index: '6-1',
+          timestamp: '2026-01-22T19:16:53.000Z',
+          to: 'So11111111111111111111111111111111111111112',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 5201n,
+          transactionHash: '5Rndx2MH75VSy5mviPwV6UjF8ESNsvQPfRsnDUxKEA8g9e4RDDs34LSsGA3PEqPiKHctP7NciPVRAJQnAh5X5RYU',
+        },
+        {
+          amount: 132000000n,
+          blockNumber: 395248197,
+          from: 'So11111111111111111111111111111111111111112',
+          index: '6-2',
+          timestamp: '2026-01-22T19:16:53.000Z',
+          to: 'BHXVYWyV4CF7quA3U8CWwe1xA9FPmXqM9JovRAZBNj7d',
+          token: 'So11111111111111111111111111111111111111112',
+          tokenType: 'TOKEN',
+          transactionGasFee: 5201n,
+          transactionHash: '5Rndx2MH75VSy5mviPwV6UjF8ESNsvQPfRsnDUxKEA8g9e4RDDs34LSsGA3PEqPiKHctP7NciPVRAJQnAh5X5RYU',
+        },
+        {
+          amount: 132000000n,
+          blockNumber: 395248197,
+          from: 'So11111111111111111111111111111111111111112',
+          index: '5-2-2',
+          timestamp: '2026-01-22T19:16:53.000Z',
+          to: '4xZYFLR2eyo2vrfsGuJZEPsgZafamE9fFPJ5wYJDW6nU',
+          token: null,
+          tokenType: 'NATIVE',
+          transactionGasFee: 5201n,
+          transactionHash: '5Rndx2MH75VSy5mviPwV6UjF8ESNsvQPfRsnDUxKEA8g9e4RDDs34LSsGA3PEqPiKHctP7NciPVRAJQnAh5X5RYU',
         },
       ],
     },

@@ -1,6 +1,6 @@
 {
   "name": "@indexing/jiti",
-  "version": "0.0.66",
+  "version": "0.0.67",
   "description": "Just In Time Indexing, for all",
   "source": "src/index.ts",
   "main": "dist/main.js",
@@ -23,6 +23,7 @@
     "@parcel/transformer-typescript-types": "^2.12.0",
     "@types/isomorphic-fetch": "^0.0.39",
     "@types/node": "^22.10.6",
+    "dotenv": "17.2.3",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
     "husky": "^9.1.5",
