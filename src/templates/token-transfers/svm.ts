@@ -138,8 +138,18 @@ export const SVMTokenTransfers: SubTemplate = {
                 if (from && to && mint) break;
               }
 
-              if (!from) from = allAccounts[fromIdx] || signer;
-              if (!to) to = allAccounts[toIdx] || signer;
+              if (!from) {
+                from =
+                  svmTx.meta.preTokenBalances.find((ptb) => ptb.accountIndex === fromIdx + 1)?.owner ||
+                  allAccounts[fromIdx] ||
+                  signer;
+              }
+              if (!to) {
+                to =
+                  svmTx.meta.postTokenBalances.find((ptb) => ptb.accountIndex === toIdx + 1)?.owner ||
+                  allAccounts[toIdx] ||
+                  signer;
+              }
 
               txTransfers.push({
                 amount,
@@ -1621,6 +1631,29 @@ export const SVMTokenTransfers: SubTemplate = {
           tokenType: 'NATIVE',
           transactionGasFee: 5201n,
           transactionHash: '5Rndx2MH75VSy5mviPwV6UjF8ESNsvQPfRsnDUxKEA8g9e4RDDs34LSsGA3PEqPiKHctP7NciPVRAJQnAh5X5RYU',
+        },
+      ],
+    },
+
+    {
+      params: {
+        network: 'SOLANA',
+        transactionHash: '5e9vdMRoae9xGbDdcbiG3skxniuXyigxQiKY9quMht9xzToYqvuKHV8Qo38j4oNVmAfiKAtPniFrL4AB6hPw5H3T',
+        walletAddress: 'ECuAG1KtnnNYW5bx3h356Gr69P2UekxYSy4vkg9tB9qG',
+      },
+      payload: 'https://jiti.indexing.co/networks/solana/381660142',
+      output: [
+        {
+          amount: 40000000n,
+          blockNumber: 381660142,
+          from: '39guB1KD47dafdw7a6vsYzyPoA8iD55EDLcBKoUCrim3',
+          index: '1',
+          timestamp: '2025-11-22T01:09:01.000Z',
+          to: 'ECuAG1KtnnNYW5bx3h356Gr69P2UekxYSy4vkg9tB9qG',
+          token: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+          tokenType: 'TOKEN',
+          transactionGasFee: 5000n,
+          transactionHash: '5e9vdMRoae9xGbDdcbiG3skxniuXyigxQiKY9quMht9xzToYqvuKHV8Qo38j4oNVmAfiKAtPniFrL4AB6hPw5H3T',
         },
       ],
     },
