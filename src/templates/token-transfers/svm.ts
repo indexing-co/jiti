@@ -121,7 +121,10 @@ export const SVMTokenTransfers: SubTemplate = {
               const amount = BigInt(amountData.readBigUInt64LE(0).toString());
 
               const fromIdx = inst.accounts[0];
-              const toIdx = inst.accounts.length === 5 ? inst.accounts[4] : inst.accounts[inst.accounts.length - 2];
+              let toIdx = inst.accounts.length === 5 ? inst.accounts[4] : inst.accounts[inst.accounts.length - 2];
+              if (inst.accounts.length === 5 && programId === SPL_TOKEN_PROGRAM) {
+                toIdx = inst.accounts[2];
+              }
 
               let from = createdAccountsToOwner[allAccounts[fromIdx]];
               let to = createdAccountsToOwner[allAccounts[toIdx]];
@@ -1654,6 +1657,29 @@ export const SVMTokenTransfers: SubTemplate = {
           tokenType: 'TOKEN',
           transactionGasFee: 5000n,
           transactionHash: '5e9vdMRoae9xGbDdcbiG3skxniuXyigxQiKY9quMht9xzToYqvuKHV8Qo38j4oNVmAfiKAtPniFrL4AB6hPw5H3T',
+        },
+      ],
+    },
+
+    {
+      params: {
+        network: 'SOLANA',
+        transactionHash: 'GxodFb9CmZfNwduEbtKdFtBs3CEgFt5h4MAPsA2pwQWMr2jiYWX1SvGoyRftmwQDVYdqvwEbPNrU8gJEeTU1u5T',
+        walletAddress: 'ECuAG1KtnnNYW5bx3h356Gr69P2UekxYSy4vkg9tB9qG',
+      },
+      payload: 'https://jiti.indexing.co/networks/solana/364694991',
+      output: [
+        {
+          amount: 6140759n,
+          blockNumber: 364694991,
+          from: 'CDr3sjXFHVPZYp8k7AUNHVJDN1sfvppLfPHd4Pwk8Mha',
+          index: '3',
+          timestamp: '2025-09-04T22:46:33.000Z',
+          to: 'ECuAG1KtnnNYW5bx3h356Gr69P2UekxYSy4vkg9tB9qG',
+          token: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',
+          tokenType: 'TOKEN',
+          transactionGasFee: 79996n,
+          transactionHash: 'GxodFb9CmZfNwduEbtKdFtBs3CEgFt5h4MAPsA2pwQWMr2jiYWX1SvGoyRftmwQDVYdqvwEbPNrU8gJEeTU1u5T',
         },
       ],
     },
