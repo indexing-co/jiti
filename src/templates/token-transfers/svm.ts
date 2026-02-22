@@ -113,7 +113,7 @@ export const SVMTokenTransfers: SubTemplate = {
           if ([SPL_TOKEN_PROGRAM, SPL_TOKEN_2022_PROGRAM].includes(programId)) {
             // TRANSFER, TRANSFER CHECKED
             if (
-              (instSig.startsWith('3,') && inst.accounts.length === 3) ||
+              (instSig.startsWith('3,') && inst.accounts.length >= 3) ||
               (instSig.startsWith('12,') && inst.accounts.length >= 4)
             ) {
               const amountData = Buffer.from(instData).slice(1, 9);
@@ -122,8 +122,10 @@ export const SVMTokenTransfers: SubTemplate = {
 
               const fromIdx = inst.accounts[0];
               let toIdx = inst.accounts.length === 5 ? inst.accounts[4] : inst.accounts[inst.accounts.length - 2];
-              if (inst.accounts.length === 5 && programId === SPL_TOKEN_PROGRAM) {
+              if (programId === SPL_TOKEN_PROGRAM && inst.accounts.length === 5) {
                 toIdx = inst.accounts[2];
+              } else if (programId === SPL_TOKEN_PROGRAM && inst.accounts.length === 4 && instSig.startsWith('3,')) {
+                toIdx = inst.accounts[1];
               }
 
               let from = createdAccountsToOwner[allAccounts[fromIdx]];
@@ -1680,6 +1682,29 @@ export const SVMTokenTransfers: SubTemplate = {
           tokenType: 'TOKEN',
           transactionGasFee: 79996n,
           transactionHash: 'GxodFb9CmZfNwduEbtKdFtBs3CEgFt5h4MAPsA2pwQWMr2jiYWX1SvGoyRftmwQDVYdqvwEbPNrU8gJEeTU1u5T',
+        },
+      ],
+    },
+
+    {
+      params: {
+        network: 'SOLANA',
+        transactionHash: '3eeMTdpdDftMN2KCNbwLg2kYycgVGU1ojMwHocqNtYgSXpcsrdxwzVPaHZpZYQFkXH7ndnAtDo8h4m6DP5jGjvyX',
+        contractAddress: 'oreoU2P8bN6jkk3jbaiVxYnG1dCXcYxwhwyK9jSybcp',
+      },
+      payload: 'https://jiti.indexing.co/networks/solana/379199656',
+      output: [
+        {
+          amount: 3074929252449n,
+          blockNumber: 379199656,
+          from: 'EJ8trQpEqfFBrfdxccvspySexWPwci73Nhs2pUgkxwPQ',
+          index: '3-1',
+          timestamp: '2025-11-10T16:46:28.000Z',
+          to: 'AwUZyzJ9T9KD84kGTjNUBwzxWobysdX7wVeTXV8yVkG3',
+          token: 'oreoU2P8bN6jkk3jbaiVxYnG1dCXcYxwhwyK9jSybcp',
+          tokenType: 'TOKEN',
+          transactionGasFee: 5000n,
+          transactionHash: '3eeMTdpdDftMN2KCNbwLg2kYycgVGU1ojMwHocqNtYgSXpcsrdxwzVPaHZpZYQFkXH7ndnAtDo8h4m6DP5jGjvyX',
         },
       ],
     },
