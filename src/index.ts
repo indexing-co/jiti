@@ -1,8 +1,9 @@
-import * as types from './types';
 import * as allUtils from './utils';
 import * as allTemplates from './templates';
 
-export { types };
+export * from './types';
+export type { NetworkTransfer } from './templates/token-transfers/types';
+export type { HubEventMessage } from './utils/snapchain-parse-event';
 export const utils = { ...allUtils };
 export const templates = { ...allTemplates };
 

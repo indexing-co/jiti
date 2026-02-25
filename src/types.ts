@@ -33,3 +33,7 @@ export type SubTemplate = {
   transform: Template['transform'];
   tests: Template['tests'];
 };
+
+export type VMType = 'APTOS' | 'CARDANO' | 'COSMOS' | 'EVM' | 'FILECOIN' | 'HYPERCORE' | 'RIPPLE' | 'SNAPCHAIN' | 'STARKNET' | 'STELLAR' | 'SUBSTRATE' | 'SUI' | 'SVM' | 'TON' | 'UTXO';
+
+export type NetworkType = 'APTOS' | 'APTOS_TESTNET' | 'ASTAR' | 'BITCOIN' | 'BITCOIN_TESTNET' | 'BITTENSOR' | 'CARDANO' | 'CAST_PROTOCOL' | 'DOGECOIN' | 'ECLIPSE' | 'ENJIN' | 'FARCASTER' | 'FILECOIN' | 'HYPERCORE' | 'KUSAMA' | 'LITECOIN' | 'MOVEMENT_BARDOCK' | 'POLKADOT' | 'RIPPLE' | 'SNAPCHAIN' | 'SOLANA' | 'SOLANA_DEVNET' | 'STARKNET' | 'STELLAR' | 'SUI' | 'TON' | 'ZCASH';
