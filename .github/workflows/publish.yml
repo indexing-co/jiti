@@ -9,7 +9,7 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 jobs:
   publish:
@@ -41,6 +41,6 @@ jobs:
         run: |
           git add package.json package-lock.json
           git commit -m "Auto-update package version [skip ci]" || echo "No changes to commit"
-          git push git@github.com:indexing-co/jiti.git main || echo "No changes to push"
+          git push origin main || echo "No changes to push"
 
       - run: npm publish --tag latest
