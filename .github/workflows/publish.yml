@@ -17,6 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_KEY }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -41,6 +45,7 @@ jobs:
         run: |
           git add package.json package-lock.json
           git commit -m "Auto-update package version [skip ci]" || echo "No changes to commit"
+          git remote set-url origin git@github.com:indexing-co/jiti.git
           git push origin main || echo "No changes to push"
 
       - run: npm publish --tag latest
