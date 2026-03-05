@@ -124,3 +124,12 @@ const CHAIN_ID: Record<string, number> = {
 export function evmChainToId(chain: string) {
   return CHAIN_ID[chain?.toUpperCase()];
 }
+
+const ID_TO_CHAIN: Record<number, string> = {};
+for (const [chain, id] of Object.entries(CHAIN_ID)) {
+  if (!(id in ID_TO_CHAIN)) ID_TO_CHAIN[id] = chain;
+}
+
+export function evmIdToChain(id: number | string): string | undefined {
+  return ID_TO_CHAIN[typeof id === 'string' ? Number(id) : id];
+}
