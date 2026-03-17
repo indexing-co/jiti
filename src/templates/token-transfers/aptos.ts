@@ -66,16 +66,18 @@ export const AptosTokenTransfers: SubTemplate = {
             transactionHash: tx.hash as string,
           });
         } else if (owner?.length > 4) {
-          const payload = tx.payload as { function: string; arguments: string[] };
+          const payload = tx.payload as { function: string; arguments: string[]; type_arguments?: string[] };
           if (payload && payload.function === '0x1::aptos_account::transfer_coins') {
+            const coinType = payload.type_arguments?.[0];
+            const isNative = !coinType || coinType.toLowerCase().includes('aptos_coin');
             transfers.push({
               amount: BigInt(payload.arguments[1]),
               blockNumber: parseInt(typedBlock.block_height, 10),
               from: sender,
               to: owner,
               timestamp,
-              token: null,
-              tokenType: 'NATIVE',
+              token: isNative ? null : coinType.toLowerCase(),
+              tokenType: isNative ? 'NATIVE' : 'TOKEN',
               transactionGasFee: gasUsed,
               transactionHash: tx.hash as string,
             });
@@ -271,6 +273,52 @@ export const AptosTokenTransfers: SubTemplate = {
           tokenType: 'NATIVE',
           transactionGasFee: 18n,
           transactionHash: '0xa7d2d682f6940c1023d95ae8950b8d1dc0604abd34a4a2cc654f1be6f330ca44',
+        },
+      ],
+    },
+
+    // transfer_coins with non-native token (PROPS) — should NOT produce token: null
+    // Bug: the transfer_coins code path blindly sets token: null, tokenType: 'NATIVE'
+    // even when type_arguments indicates a non-native coin
+    {
+      params: {
+        network: 'APTOS',
+        transactionHash: '0xaaec78039e7392b430c554bc33291c2786a1c92669e8f8f88280f419b0792d29',
+      },
+      payload: 'https://jiti.indexing.co/networks/aptos/661127894',
+      output: [
+        {
+          amount: 18740000000000n,
+          blockNumber: 661127894,
+          from: '0xaa0090c74e4976834ff1b9b9ef945e1c4b6cdb49cccf37c2554ef026081312f1',
+          to: '0xaa0090c74e4976834ff1b9b9ef945e1c4b6cdb49cccf37c2554ef026081312f1',
+          timestamp: '2026-03-13T15:33:48.659Z',
+          token: '0xe50684a338db732d8fb8a3ac71c4b8633878bd0193bca5de2ebc852a83b35099::propbase_coin::props',
+          tokenType: 'TOKEN',
+          transactionGasFee: 16n,
+          transactionHash: '0xaaec78039e7392b430c554bc33291c2786a1c92669e8f8f88280f419b0792d29',
+        },
+        {
+          amount: 53458526229170n,
+          blockNumber: 661127894,
+          from: '0xaa0090c74e4976834ff1b9b9ef945e1c4b6cdb49cccf37c2554ef026081312f1',
+          to: '0xf520886f20b097e2e2e4116ab66d943f13a3f107d2ba09f6f1abc38e872b234c',
+          timestamp: '2026-03-13T15:33:48.659Z',
+          token: '0x6dba1728c73363be1bdd4d504844c40fbb893e368ccbeff1d1bd83497dbc756d',
+          tokenType: 'TOKEN',
+          transactionGasFee: 16n,
+          transactionHash: '0xaaec78039e7392b430c554bc33291c2786a1c92669e8f8f88280f419b0792d29',
+        },
+        {
+          amount: 18740000000000n,
+          blockNumber: 661127894,
+          from: '0xaa0090c74e4976834ff1b9b9ef945e1c4b6cdb49cccf37c2554ef026081312f1',
+          to: '0xf520886f20b097e2e2e4116ab66d943f13a3f107d2ba09f6f1abc38e872b234c',
+          timestamp: '2026-03-13T15:33:48.659Z',
+          token: '0xe50684a338db732d8fb8a3ac71c4b8633878bd0193bca5de2ebc852a83b35099::propbase_coin::props',
+          tokenType: 'TOKEN',
+          transactionGasFee: 16n,
+          transactionHash: '0xaaec78039e7392b430c554bc33291c2786a1c92669e8f8f88280f419b0792d29',
         },
       ],
     },
