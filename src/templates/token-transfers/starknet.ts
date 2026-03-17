@@ -1,36 +1,21 @@
 import { SubTemplate } from '../../types';
 import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
+import type { StarknetBlock } from '../../types/beats/starknet';
 
 export const StarknetTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'STARKNET',
 
   transform(block) {
     let transfers: NetworkTransfer[] = [];
+    const typedBlock = block as unknown as StarknetBlock;
 
-    if (!Array.isArray(block.transactions)) {
+    if (!Array.isArray(typedBlock.transactions)) {
       return [];
     }
 
-    for (const tx of block.transactions || []) {
-      const typedTx = tx as {
-        transaction_hash: string;
-        sender_address: string;
-        receipt?: {
-          actual_fee?: {
-            amount?: string;
-            unit?: string;
-          };
-          events?: {
-            keys: string[];
-            data: string[];
-          }[];
-        };
-        timestamp?: number | string;
-        data_availability?: Record<string, unknown>;
-      };
-
-      const timestamp = block.timestamp ? new Date((block.timestamp as number) * 1000).toISOString() : null;
+    for (const typedTx of typedBlock.transactions || []) {
+      const timestamp = typedBlock.timestamp ? new Date(typedBlock.timestamp * 1000).toISOString() : null;
 
       let transactionGasFee = BigInt(0);
       if (typedTx?.receipt?.actual_fee?.amount) {
@@ -56,7 +41,7 @@ export const StarknetTokenTransfers: SubTemplate = {
 
         transfers.push({
           amount,
-          blockNumber: block.block_number as number,
+          blockNumber: typedBlock.block_number,
           from,
           timestamp,
           to,

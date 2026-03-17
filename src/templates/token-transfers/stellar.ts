@@ -1,33 +1,21 @@
 import { SubTemplate } from '../../types';
 import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
+import type { StellarLedger } from '../../types/beats/stellar';
 
 export const StellarTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'STELLAR',
 
   transform(block) {
     let transfers: NetworkTransfer[] = [];
+    const typedBlock = block as unknown as StellarLedger;
 
-    for (const tx of (block.transactions as unknown[]) || []) {
-      const typedTx = tx as {
-        hash: string;
-        created_at: string;
-        fee_charged: string;
-        memo: string;
-        operations: {
-          type: string;
-          from: string;
-          to: string;
-          amount: string;
-          asset_type: string;
-          asset_issuer: string;
-        }[];
-      };
+    for (const typedTx of typedBlock.transactions || []) {
       for (const op of typedTx.operations) {
         if (op.type === 'payment') {
           transfers.push({
             amount: BigInt(op.amount.replace('.', '')),
-            blockNumber: block.sequence as number,
+            blockNumber: typedBlock.sequence,
             from: op.from,
             memo: typedTx.memo,
             timestamp: typedTx.created_at,

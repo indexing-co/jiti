@@ -1,35 +1,26 @@
 import { SubTemplate } from '../../types';
 import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
+import type { RippleLedger } from '../../types/beats/ripple';
 
 export const RippleTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'RIPPLE',
 
   transform(block) {
     let transfers: NetworkTransfer[] = [];
+    const typedBlock = block as unknown as RippleLedger;
 
-    if (!Array.isArray(block.transactions)) {
+    if (!Array.isArray(typedBlock.transactions)) {
       return [];
     }
 
-    for (const rawTx of block.transactions || []) {
-      const typedTx = rawTx as {
-        Account?: string;
-        Amount?: string | { currency: string; issuer: string; value: string };
-        Destination?: string;
-        DestinationTag?: number;
-        Fee?: string;
-        hash?: string;
-        TransactionType?: string;
-        date?: number;
-        metaData?: {
-          delivered_amount?: string | { currency: string; issuer: string; value: string };
-        };
-      };
+    for (const typedTx of typedBlock.transactions || []) {
       if (typedTx.TransactionType !== 'Payment') {
         continue;
       }
-      const deliveredOrAmount = typedTx.metaData?.delivered_amount ?? typedTx.Amount ?? '0';
+      const deliveredOrAmount = (typedTx.metaData?.delivered_amount ?? typedTx.Amount ?? '0') as
+        | string
+        | { currency: string; issuer: string; value: string };
       let tokenSymbol = 'XRP';
       let tokenType: 'NATIVE' | 'TOKEN' | 'NFT' = 'NATIVE';
 
@@ -46,10 +37,10 @@ export const RippleTokenTransfers: SubTemplate = {
       }
       transfers.push({
         amount: parsedAmount,
-        blockNumber: parseInt(block.ledger_index as string, 10),
+        blockNumber: parseInt(typedBlock.ledger_index, 10),
         from: typedTx.Account ?? 'UNKNOWN',
         memo: typedTx.DestinationTag,
-        timestamp: block.close_time_iso ? (block.close_time_iso as string) : null,
+        timestamp: typedBlock.close_time_iso || null,
         to: typedTx.Destination ?? 'UNKNOWN',
         token: tokenSymbol,
         tokenType: tokenType,

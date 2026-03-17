@@ -1,6 +1,7 @@
 import { SubTemplate } from '../../types';
 import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
+import type { SubstrateBlock } from '../../types/beats/substrate';
 
 export const SubstrateTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'SUBSTRATE',
@@ -8,16 +9,7 @@ export const SubstrateTokenTransfers: SubTemplate = {
   transform(block) {
     let transfers: NetworkTransfer[] = [];
 
-    const typedBlock = block as {
-      blockNumber: number;
-      header: { number: string };
-      extrinsics: {
-        method: string;
-        signer: string;
-        args: any[];
-        hash: string;
-      }[];
-    };
+    const typedBlock = block as unknown as SubstrateBlock;
 
     const blockNumber = typedBlock.blockNumber;
 

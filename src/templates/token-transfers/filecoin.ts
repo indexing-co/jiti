@@ -1,6 +1,7 @@
 import { SubTemplate } from '../../types';
 import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
+import type { FilecoinBlock } from '../../types/beats/filecoin';
 
 export const FilecoinTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'FILECOIN',
@@ -8,26 +9,7 @@ export const FilecoinTokenTransfers: SubTemplate = {
   transform(block) {
     let transfers: NetworkTransfer[] = [];
 
-    const typedBlock = block as {
-      Height: number;
-      Blocks: Array<{ ParentBaseFee: string; Timestamp: number }>;
-      messages: Array<{
-        blockMessages: {
-          BlsMessages?: Array<unknown>;
-          SecpkMessages?: Array<{
-            Message: {
-              From: string;
-              To: string;
-              Value: string;
-              GasFeeCap: string;
-              GasPremium: string;
-            };
-            CID: { '/': string };
-          }>;
-        };
-      }>;
-      receipts: Array<{ GasUsed: number }>;
-    };
+    const typedBlock = block as unknown as FilecoinBlock;
 
     const blockNumber = typedBlock.Height;
     const blockTimestamp = new Date(typedBlock.Blocks[0].Timestamp * 1000).toISOString();

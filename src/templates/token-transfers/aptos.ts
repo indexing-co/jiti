@@ -1,6 +1,7 @@
 import { SubTemplate } from '../../types';
 import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
+import type { AptosBlock } from '../../types/beats/aptos';
 
 export const AptosTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'APTOS',
@@ -8,7 +9,9 @@ export const AptosTokenTransfers: SubTemplate = {
   transform(block) {
     let transfers: NetworkTransfer[] = [];
 
-    for (const tx of (block.transactions as Record<string, unknown>[]) || []) {
+    const typedBlock = block as unknown as AptosBlock;
+
+    for (const tx of (typedBlock.transactions as unknown as Record<string, unknown>[]) || []) {
       if (!tx?.events || !Array.isArray(tx.events)) {
         continue;
       }
@@ -53,7 +56,7 @@ export const AptosTokenTransfers: SubTemplate = {
           if (!to || !tokenAddress || to === sender) continue;
           transfers.push({
             amount: BigInt(balance),
-            blockNumber: parseInt(block.block_height as string, 10),
+            blockNumber: parseInt(typedBlock.block_height, 10),
             from: sender,
             to,
             timestamp,
@@ -67,7 +70,7 @@ export const AptosTokenTransfers: SubTemplate = {
           if (payload && payload.function === '0x1::aptos_account::transfer_coins') {
             transfers.push({
               amount: BigInt(payload.arguments[1]),
-              blockNumber: parseInt(block.block_height as string, 10),
+              blockNumber: parseInt(typedBlock.block_height, 10),
               from: sender,
               to: owner,
               timestamp,
@@ -128,7 +131,7 @@ export const AptosTokenTransfers: SubTemplate = {
 
         transfers.push({
           amount: BigInt(partial.amount || 0),
-          blockNumber: parseInt(block.block_height as string, 10),
+          blockNumber: parseInt(typedBlock.block_height, 10),
           from: partial.from,
           to: partial.to,
           timestamp,

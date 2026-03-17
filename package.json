@@ -1,6 +1,6 @@
 {
   "name": "@indexing/jiti",
-  "version": "0.0.78",
+  "version": "0.1.0",
   "description": "Just In Time Indexing, for all",
   "source": "src/index.ts",
   "main": "dist/main.js",
@@ -13,6 +13,7 @@
   "scripts": {
     "build": "rm -rf dist .parcel-cache && parcel build --dist-dir dist",
     "lint": "prettier --write **.ts && eslint .",
+    "generate:block-types": "npx ts-node scripts/generate-block-types.ts",
     "test": "npx ts-node tests.ts",
     "watch": "parcel watch"
   },

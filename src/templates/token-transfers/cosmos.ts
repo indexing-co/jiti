@@ -5,6 +5,7 @@ import { sha256 } from 'viem';
 import { SubTemplate } from '../../types';
 import { NetworkTransfer } from './types';
 import { blockToVM } from '../../utils/block-to-vm';
+import type { CosmosBlock } from '../../types/beats/cosmos';
 
 export const CosmosTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'COSMOS',
@@ -12,10 +13,7 @@ export const CosmosTokenTransfers: SubTemplate = {
   transform(block) {
     let transfers: NetworkTransfer[] = [];
 
-    const typedBlock = block as {
-      block: { header: { height: string; time: string }; data: { txs?: string[] } };
-      block_id: { hash: string };
-    };
+    const typedBlock = block as unknown as CosmosBlock;
 
     const blockNumber = Number(typedBlock.block.header.height);
     const blockTimestamp = new Date(typedBlock.block.header.time).toISOString();

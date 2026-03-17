@@ -2,6 +2,7 @@ import * as allUtils from './utils';
 import * as allTemplates from './templates';
 
 export * from './types';
+export * from './types/beats';
 export type { NetworkTransfer } from './templates/token-transfers/types';
 export type { HubEventMessage } from './utils/snapchain-parse-event';
 export const utils = { ...allUtils };

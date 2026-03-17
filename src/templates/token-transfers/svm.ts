@@ -3,6 +3,7 @@ import bs58 from 'bs58';
 import { SubTemplate } from '../../types';
 import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
+import type { SvmBlock, SvmBlockTransactions } from '../../types/beats/svm';
 
 const SYSTEM_PROGRAM = '11111111111111111111111111111111';
 const WSOL_MINT = 'So11111111111111111111111111111111111111112';
@@ -15,41 +16,14 @@ export const SVMTokenTransfers: SubTemplate = {
   transform(block) {
     let transfers: NetworkTransfer[] = [];
 
-    for (const tx of (block.transactions as unknown[]) || []) {
+    const typedBlock = block as unknown as SvmBlock;
+
+    for (const svmTx of typedBlock.transactions || []) {
       const txTransfers: ((typeof transfers)[0] & { fromTokenAccount?: string; toTokenAccount?: string })[] = [];
 
-      const svmTx = tx as {
-        meta: {
-          fee: number;
-          loadedAddresses: { readonly: string[]; writable: string[] };
-          postTokenBalances: {
-            accountIndex: number;
-            mint: string;
-            owner: string;
-            uiTokenAmount: { amount: string };
-          }[];
-          preTokenBalances: {
-            accountIndex: number;
-            mint: string;
-            owner: string;
-            uiTokenAmount: { amount: string };
-          }[];
-          postBalances: number[];
-          preBalances: number[];
-          innerInstructions: {
-            index: number;
-            instructions: Record<string, unknown>[];
-          }[];
-          status?: { Err?: unknown };
-        };
-        transaction: {
-          message: { accountKeys: (string | { pubkey: string })[]; instructions: Record<string, unknown>[] };
-          signatures: string[];
-        };
-      };
       const txHash = svmTx.transaction.signatures[0];
-      const timestamp = block.blockTime ? new Date((block.blockTime as number) * 1000).toISOString() : null;
-      const allAccounts = svmTx.transaction.message.accountKeys
+      const timestamp = typedBlock.blockTime ? new Date(typedBlock.blockTime * 1000).toISOString() : null;
+      const allAccounts = (svmTx.transaction.message.accountKeys as (string | { pubkey: string })[])
         .concat(svmTx.meta.loadedAddresses.writable)
         .concat(svmTx.meta.loadedAddresses.readonly)
         .map((a) => (typeof a === 'string' ? a : (a as { pubkey: string })?.pubkey));
@@ -66,7 +40,7 @@ export const SVMTokenTransfers: SubTemplate = {
       // handle tx fee
       txTransfers.push({
         amount: txFee,
-        blockNumber: (block.parentSlot as number) + 1,
+        blockNumber: typedBlock.parentSlot + 1,
         from: feePayer,
         index: '0',
         timestamp,
@@ -158,7 +132,7 @@ export const SVMTokenTransfers: SubTemplate = {
 
               txTransfers.push({
                 amount,
-                blockNumber: (block.parentSlot as number) + 1,
+                blockNumber: typedBlock.parentSlot + 1,
                 from,
                 fromTokenAccount: allAccounts[fromIdx],
                 index,
@@ -195,7 +169,7 @@ export const SVMTokenTransfers: SubTemplate = {
 
               txTransfers.push({
                 amount: solAmount,
-                blockNumber: (block.parentSlot as number) + 1,
+                blockNumber: typedBlock.parentSlot + 1,
                 from,
                 index,
                 timestamp,
@@ -213,7 +187,7 @@ export const SVMTokenTransfers: SubTemplate = {
               if (wSolAmount > BigInt(0)) {
                 txTransfers.push({
                   amount: wSolAmount,
-                  blockNumber: (block.parentSlot as number) + 1,
+                  blockNumber: typedBlock.parentSlot + 1,
                   from,
                   index: `${index}-1`,
                   timestamp,
@@ -225,7 +199,7 @@ export const SVMTokenTransfers: SubTemplate = {
                 });
                 txTransfers.push({
                   amount: wSolAmount,
-                  blockNumber: (block.parentSlot as number) + 1,
+                  blockNumber: typedBlock.parentSlot + 1,
                   from: WSOL_MINT,
                   index: `${index}-2`,
                   timestamp,
@@ -239,7 +213,7 @@ export const SVMTokenTransfers: SubTemplate = {
               } else if (wSolAmount < BigInt(0)) {
                 txTransfers.push({
                   amount: wSolAmount * BigInt(-1),
-                  blockNumber: (block.parentSlot as number) + 1,
+                  blockNumber: typedBlock.parentSlot + 1,
                   from: WSOL_MINT,
                   index: `${index}-1`,
                   timestamp,
@@ -251,7 +225,7 @@ export const SVMTokenTransfers: SubTemplate = {
                 });
                 txTransfers.push({
                   amount: wSolAmount * BigInt(-1),
-                  blockNumber: (block.parentSlot as number) + 1,
+                  blockNumber: typedBlock.parentSlot + 1,
                   from: to,
                   index: `${index}-2`,
                   timestamp,
@@ -281,7 +255,7 @@ export const SVMTokenTransfers: SubTemplate = {
               const amount = BigInt(amountData.readBigUInt64LE(0).toString());
               txTransfers.push({
                 amount,
-                blockNumber: (block.parentSlot as number) + 1,
+                blockNumber: typedBlock.parentSlot + 1,
                 from: matchingAccounts[0],
                 index,
                 timestamp,
@@ -299,7 +273,7 @@ export const SVMTokenTransfers: SubTemplate = {
               const amount = BigInt(amountData.readBigUInt64LE(0).toString());
               txTransfers.push({
                 amount,
-                blockNumber: (block.parentSlot as number) + 1,
+                blockNumber: typedBlock.parentSlot + 1,
                 from: matchingAccounts[0],
                 index,
                 timestamp,
@@ -331,7 +305,7 @@ export const SVMTokenTransfers: SubTemplate = {
               const amount = BigInt(amountData.readBigUInt64LE(0).toString());
               txTransfers.push({
                 amount,
-                blockNumber: (block.parentSlot as number) + 1,
+                blockNumber: typedBlock.parentSlot + 1,
                 from: matchingAccounts[0],
                 index,
                 timestamp,
@@ -380,7 +354,7 @@ export const SVMTokenTransfers: SubTemplate = {
           ) {
             txTransfers.push({
               amount: toReconcile[t.from],
-              blockNumber: (block.parentSlot as number) + 1,
+              blockNumber: typedBlock.parentSlot + 1,
               from: t.to,
               index: t.index + '-1',
               timestamp,
@@ -403,7 +377,7 @@ export const SVMTokenTransfers: SubTemplate = {
             if (toReconcile[t.fromTokenAccount]) {
               txTransfers.push({
                 amount: t.amount,
-                blockNumber: (block.parentSlot as number) + 1,
+                blockNumber: typedBlock.parentSlot + 1,
                 from: t.fromTokenAccount,
                 index: t.index + '-1',
                 timestamp,
@@ -421,7 +395,7 @@ export const SVMTokenTransfers: SubTemplate = {
             if (toReconcile[t.toTokenAccount]) {
               txTransfers.push({
                 amount: t.amount,
-                blockNumber: (block.parentSlot as number) + 1,
+                blockNumber: typedBlock.parentSlot + 1,
                 from: WSOL_MINT,
                 index: t.index + '-2',
                 timestamp,
@@ -447,7 +421,7 @@ export const SVMTokenTransfers: SubTemplate = {
             if (k !== j && toReconcile[k] === toReconcile[j] * BigInt(-1)) {
               txTransfers.push({
                 amount: toReconcile[j] < BigInt(0) ? toReconcile[j] * BigInt(-1) : toReconcile[j],
-                blockNumber: (block.parentSlot as number) + 1,
+                blockNumber: typedBlock.parentSlot + 1,
                 from: toReconcile[j] < BigInt(0) ? j : k,
                 // index,
                 timestamp,
@@ -484,7 +458,7 @@ export const SVMTokenTransfers: SubTemplate = {
 
               txTransfers.push({
                 amount,
-                blockNumber: (block.parentSlot as number) + 1,
+                blockNumber: typedBlock.parentSlot + 1,
                 from,
                 // index,
                 timestamp,
@@ -538,7 +512,7 @@ export const SVMTokenTransfers: SubTemplate = {
           if (amount > BigInt(0) && post.mint === WSOL_MINT) {
             txTransfers.push({
               amount,
-              blockNumber: (block.parentSlot as number) + 1,
+              blockNumber: typedBlock.parentSlot + 1,
               from: WSOL_MINT,
               // index,
               timestamp,
@@ -553,7 +527,7 @@ export const SVMTokenTransfers: SubTemplate = {
           else if (!pre && amount > BigInt(0)) {
             txTransfers.push({
               amount,
-              blockNumber: (block.parentSlot as number) + 1,
+              blockNumber: typedBlock.parentSlot + 1,
               from: post.mint,
               // index,
               timestamp,

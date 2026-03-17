@@ -33,9 +33,24 @@ jobs:
 
       - run: npm test
 
-      - name: Bump Version
+      - name: Check for manual version bump
+        id: version-check
         run: |
-          npm version patch --no-git-tag-version
+          CURR=$(node -p "require('./package.json').version")
+          PREV=$(git show HEAD~1:package.json 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/')
+          if [ -n "$PREV" ] && [ "$CURR" != "$PREV" ]; then
+            echo "skip_bump=true" >> $GITHUB_OUTPUT
+            echo "Version manually changed: $PREV → $CURR, skipping auto-bump"
+          else
+            echo "skip_bump=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Bump Version
+        if: steps.version-check.outputs.skip_bump != 'true'
+        run: npm version patch --no-git-tag-version
+
+      - name: Configure git
+        run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
 

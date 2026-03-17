@@ -1,28 +1,30 @@
 import { SubTemplate } from '../../types';
 import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
+import type { TonBlock } from '../../types/beats/ton';
 
 export const TONTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'TON',
 
   transform(block) {
     let transfers: NetworkTransfer[] = [];
+    const typedBlock = block as unknown as TonBlock;
 
-    const blockNumber = block.seqno as number;
-    const blockTimestamp = new Date((block.shards?.[0]?.gen_utime as number) * 1000).toISOString();
+    const blockNumber = typedBlock.seqno;
+    const blockTimestamp = new Date(typedBlock.shards?.[0]?.gen_utime * 1000).toISOString();
 
-    for (const shard of (block.shards as any[]) || []) {
-      for (const tx of (shard.transactions as any[]) || []) {
-        const transactionLT = tx.transaction_id.lt as string;
-        const transactionHash = tx.transaction_id.hash as string;
-        const transactionFee = BigInt((tx.fee as string) || '0');
+    for (const shard of typedBlock.shards || []) {
+      for (const tx of shard.transactions || []) {
+        const transactionLT = tx.transaction_id.lt;
+        const transactionHash = tx.transaction_id.hash;
+        const transactionFee = BigInt(tx.fee || '0');
 
-        const inVal = BigInt((tx.in_msg?.value as string) || '0');
+        const inVal = BigInt(tx.in_msg?.value || '0');
         if (inVal > 0n) {
           transfers.push({
             blockNumber,
-            from: tx.in_msg?.source?.account_address as string,
-            to: tx.address?.account_address as string,
+            from: tx.in_msg?.source?.account_address,
+            to: tx.address?.account_address,
             amount: inVal,
             token: 'TON',
             tokenType: 'NATIVE',
@@ -32,13 +34,13 @@ export const TONTokenTransfers: SubTemplate = {
           });
         }
 
-        for (const outMsg of (tx.out_msgs as any[]) || []) {
-          const outVal = BigInt((outMsg.value as string) || '0');
+        for (const outMsg of tx.out_msgs || []) {
+          const outVal = BigInt(outMsg.value || '0');
           if (outVal > 0n) {
             transfers.push({
               blockNumber,
-              from: outMsg.source?.account_address as string,
-              to: outMsg.destination?.account_address as string,
+              from: outMsg.source?.account_address,
+              to: outMsg.destination?.account_address,
               amount: outVal,
               token: 'TON',
               tokenType: 'NATIVE',

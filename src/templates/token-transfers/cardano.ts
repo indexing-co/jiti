@@ -1,6 +1,7 @@
 import { SubTemplate } from '../../types';
 import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
+import type { CardanoBlock } from '../../types/beats/cardano';
 
 export const CardanoTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'CARDANO',
@@ -8,35 +9,10 @@ export const CardanoTokenTransfers: SubTemplate = {
   transform(block) {
     let transfers: NetworkTransfer[] = [];
 
-    const blockTimestamp = new Date(block.timestamp as number).toISOString();
+    const typedBlock = block as unknown as CardanoBlock;
+    const blockTimestamp = new Date(typedBlock.timestamp).toISOString();
 
-    for (const tx of (block.transactions as unknown[]) || []) {
-      const typedTx = tx as {
-        transaction_identifier?: { hash?: string };
-        operations?: {
-          type: string;
-          account?: { address?: string };
-          amount?: {
-            value?: string;
-            currency?: {
-              symbol?: string;
-              decimals?: number;
-            };
-          };
-          metadata?: {
-            tokenBundle?: {
-              policyId: string;
-              tokens: {
-                value: string;
-                currency: {
-                  symbol: string;
-                  decimals: number;
-                };
-              }[];
-            }[];
-          };
-        }[];
-      };
+    for (const typedTx of typedBlock.transactions || []) {
 
       if (!Array.isArray(typedTx.operations)) {
         continue;
@@ -68,7 +44,7 @@ export const CardanoTokenTransfers: SubTemplate = {
       const transactionFee = sumInputs + BigInt(sumOutputs);
       const absFee = transactionFee < 0 ? -transactionFee : transactionFee;
 
-      const blockNumber = (block.block_identifier as { index: number }).index;
+      const blockNumber = typedBlock.block_identifier.index;
 
       for (const out of outputs) {
         const toAddress = out.account?.address || '';

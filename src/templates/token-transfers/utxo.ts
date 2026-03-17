@@ -1,6 +1,7 @@
 import { SubTemplate } from '../../types';
 import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
+import type { UtxoBlock } from '../../types/beats/utxo';
 
 export const UTXOTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'UTXO',
@@ -8,10 +9,11 @@ export const UTXOTokenTransfers: SubTemplate = {
   transform(block) {
     let transfers: NetworkTransfer[] = [];
 
-    const timestamp = block.time ? new Date((block.time as number) * 1000).toISOString() : null;
-    for (const tx of block.tx as Record<string, unknown>[]) {
-      const vin = tx.vin[0] as { prevout?: { scriptPubKey: { address: string } }; vout?: number };
-      const vout = tx.vout as { value: number; scriptPubKey?: { address: string; addresses?: string[] } }[];
+    const typedBlock = block as unknown as UtxoBlock;
+    const timestamp = typedBlock.time ? new Date(typedBlock.time * 1000).toISOString() : null;
+    for (const tx of typedBlock.tx) {
+      const vin = tx.vin[0];
+      const vout = tx.vout;
 
       const fromVout = Math.min(vin?.vout || 1000, vout.length - 1);
       const fromAddress =
@@ -25,12 +27,12 @@ export const UTXOTokenTransfers: SubTemplate = {
       for (const v of vout) {
         transfers.push({
           amount: BigInt(Math.round(v.value * Math.pow(10, 8))),
-          blockNumber: block.height as number,
+          blockNumber: typedBlock.height,
           from: fromAddress,
           timestamp,
           to: v.scriptPubKey.address || v.scriptPubKey.addresses?.[0],
-          transactionGasFee: BigInt(Math.round(((tx.fee as number) || 0) * Math.pow(10, 8))),
-          transactionHash: tx.txid as string,
+          transactionGasFee: BigInt(Math.round((tx.fee || 0) * Math.pow(10, 8))),
+          transactionHash: tx.txid,
           token: null,
           tokenType: 'NATIVE',
         });

@@ -1,19 +1,21 @@
 import { SubTemplate } from '../../types';
 import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
+import type { SuiCheckpoint } from '../../types/beats/sui';
 
 export const SUITokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'SUI',
 
   transform(block) {
     let transfers: NetworkTransfer[] = [];
+    const typedBlock = block as unknown as SuiCheckpoint;
 
-    const blockNumber = parseInt(block.sequence as string, 10);
-    const blockTimestamp = new Date(parseInt(block.timestamp as string, 10)).toISOString();
+    const blockNumber = parseInt(typedBlock.sequence, 10);
+    const blockTimestamp = new Date(parseInt(typedBlock.timestamp, 10)).toISOString();
 
-    const transactions = (block.transactions as any[]) || [];
+    const transactions = typedBlock.transactions || [];
     for (const tx of transactions) {
-      const transactionHash = tx.digest as string;
+      const transactionHash = tx.digest;
 
       let transactionGasFee = BigInt(0);
       if (tx.effects?.gasUsed) {
@@ -27,18 +29,18 @@ export const SUITokenTransfers: SubTemplate = {
           transactionGasFee = 0n;
         }
       }
-      const balanceChanges = (tx.balanceChanges as any[]) || [];
+      const balanceChanges = tx.balanceChanges || [];
       for (const bc of balanceChanges) {
-        let rawAmt = BigInt(bc.amount as string);
+        let rawAmt = BigInt(bc.amount);
         if (rawAmt === 0n) continue;
 
         let fromAddr: string | undefined;
         let toAddr: string | undefined;
 
         const rawOwner =
-          bc.owner?.AddressOwner ||
-          bc.owner?.ObjectOwner ||
-          bc.owner?.Shared?.initial_shared_version ||
+          (bc.owner as any)?.AddressOwner ||
+          (bc.owner as any)?.ObjectOwner ||
+          (bc.owner as any)?.Shared?.initial_shared_version ||
           'UNKNOWN_OWNER';
 
         if (rawAmt < 0n) {
@@ -55,7 +57,7 @@ export const SUITokenTransfers: SubTemplate = {
           from: fromAddr,
           to: toAddr,
           amount: rawAmt,
-          token: bc.coinType as string,
+          token: bc.coinType,
           tokenType: 'NATIVE',
           timestamp: blockTimestamp,
           transactionHash,

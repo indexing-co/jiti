@@ -2,6 +2,7 @@ import { SubTemplate } from '../../types';
 import { NetworkTransfer } from './types';
 import { evmDecodeLogWithMetadata } from '../../utils';
 import { blockToVM } from '../../utils/block-to-vm';
+import type { EvmBlock } from '../../types/beats/evm';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
@@ -12,12 +13,14 @@ export const EVMTokenTransfers: SubTemplate = {
     const TOKEN_TYPES = (_ctx.params.tokenTypes as NetworkTransfer['tokenType'][]) || [];
     let transfers: NetworkTransfer[] = [];
 
-    for (const tx of (block.transactions as any[]) || []) {
+    const typedBlock = block as unknown as EvmBlock;
+
+    for (const tx of (typedBlock.transactions as any[]) || []) {
       if (!tx.receipt) {
         continue;
       }
 
-      const timestamp = new Date((block.timestamp as number) * 1000).toISOString();
+      const timestamp = new Date(typedBlock.timestamp * 1000).toISOString();
       const transactionGasFee = BigInt(tx.receipt.gasUsed) * BigInt(tx.receipt.effectiveGasPrice);
 
       // track direct ETH transfers
