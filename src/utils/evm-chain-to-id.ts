@@ -110,6 +110,7 @@ const CHAIN_ID: Record<string, number> = {
   UNICHAIN: 130,
   UNICHAIN_SEPOLIA: 1301,
   UOMI_TESTNET: 4386,
+  WORLD: 480,
   XAI: 660279,
   XPLA: 37,
   XPLA_TESTNET: 47,
