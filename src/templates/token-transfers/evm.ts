@@ -6,6 +6,9 @@ import type { EvmBlock } from '../../types/beats/evm';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
+// zkSync Era wraps native ETH as an ERC-20 at this address; Transfer logs from it represent native ETH movements
+const ZKSYNC_NATIVE_ETH = '0x000000000000000000000000000000000000800a';
+
 export const EVMTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'EVM',
 
@@ -23,10 +26,50 @@ export const EVMTokenTransfers: SubTemplate = {
       const timestamp = new Date(typedBlock.timestamp * 1000).toISOString();
       const transactionGasFee = BigInt(tx.receipt.gasUsed) * BigInt(tx.receipt.effectiveGasPrice);
 
+      // check if this tx has zkSync native ETH Transfer logs (used to skip unreliable traces)
+      const hasZkSyncEthLogs = tx.receipt.logs.some(
+        (log) => (log.address as string).toLowerCase() === ZKSYNC_NATIVE_ETH
+      );
+
       // track direct ETH transfers
       if (!TOKEN_TYPES.length || TOKEN_TYPES.includes('NATIVE')) {
+        // handle L1→L2 deposit transactions (OP Stack type 0x7e) as native mints
+        if (tx.mint && BigInt(tx.mint) > 0n) {
+          transfers.push({
+            amount: BigInt(tx.mint),
+            blockNumber: tx.blockNumber as number,
+            from: NULL_ADDRESS,
+            timestamp,
+            to: tx.to?.toLowerCase() || tx.from?.toLowerCase() || NULL_ADDRESS,
+            tokenType: 'NATIVE',
+            transactionGasFee,
+            transactionHash: tx.hash,
+          });
+        }
+        // on zkSync, native ETH transfers appear as Transfer logs from 0x800a (handled below)
+        else if (hasZkSyncEthLogs) {
+          for (const log of tx.receipt.logs) {
+            if ((log.address as string).toLowerCase() !== ZKSYNC_NATIVE_ETH) continue;
+            const txfer = evmDecodeLogWithMetadata(log, [
+              'Transfer(address indexed from, address indexed to, uint256 value)',
+            ]);
+            if (txfer) {
+              transfers.push({
+                amount: txfer.decoded.value as bigint,
+                blockNumber: tx.blockNumber as number,
+                from: (txfer.decoded.from as string)?.toLowerCase() || NULL_ADDRESS,
+                index: log.logIndex,
+                timestamp,
+                to: (txfer.decoded.to as string)?.toLowerCase() || NULL_ADDRESS,
+                tokenType: 'NATIVE',
+                transactionGasFee,
+                transactionHash: tx.hash,
+              });
+            }
+          }
+        }
         // pull from traces, if available
-        if (Array.isArray(tx.traces)) {
+        else if (Array.isArray(tx.traces)) {
           for (const trace of tx.traces.filter((t) => t.action)) {
             const action = trace.action as unknown as { from: string; to: string; value: string };
             if (!action?.value) continue;
@@ -60,6 +103,9 @@ export const EVMTokenTransfers: SubTemplate = {
       // track ERC20 transfers
       if (!TOKEN_TYPES.length || TOKEN_TYPES.includes('TOKEN')) {
         for (const log of tx.receipt.logs) {
+          // skip zkSync native ETH logs (already handled as NATIVE above)
+          if ((log.address as string).toLowerCase() === ZKSYNC_NATIVE_ETH) continue;
+
           const txfer = evmDecodeLogWithMetadata(log, [
             'Transfer(address indexed from, address indexed to, uint256 value)',
           ]);
@@ -176,6 +222,47 @@ export const EVMTokenTransfers: SubTemplate = {
           tokenType: 'TOKEN',
           transactionGasFee: 1192354854229n,
           transactionHash: '0x69c9b12ccbe2d4f2f1dfc7c4a8557fc099fc5df276424417815acbc79a06fd56',
+        },
+      ],
+    },
+    {
+      params: {
+        network: 'BASE',
+        walletAddress: '0xDa863f802Cc8CBA3C436bF801BD7785d9E7d4F36',
+        tokenTypes: ['NATIVE'],
+      },
+      payload: 'https://jiti.indexing.co/networks/base/13170774',
+      output: [
+        {
+          amount: 80000000000000000n,
+          blockNumber: 13170774,
+          from: '0x0000000000000000000000000000000000000000',
+          timestamp: '2024-04-14T21:41:35.000Z',
+          to: '0xda863f802cc8cba3c436bf801bd7785d9e7d4f36',
+          tokenType: 'NATIVE',
+          transactionGasFee: 0n,
+          transactionHash: '0xa3c7cbece45ff18b18e001c4bc096567c85526dad3453dba88791054a61fc444',
+        },
+      ],
+    },
+    {
+      params: {
+        network: 'ZKSYNC',
+        walletAddress: '0xf70da97812CB96aCDF810712Aa562db8dfA3dBEf',
+        tokenTypes: ['NATIVE'],
+      },
+      payload: 'https://jiti.indexing.co/networks/zksync/55005000',
+      output: [
+        {
+          amount: 1615028132795916n,
+          blockNumber: 55005000,
+          from: '0xebd1e414ebb98522cfd932104ba41fac10a4ef35',
+          index: 4,
+          timestamp: '2025-02-01T06:14:12.000Z',
+          to: '0xf70da97812cb96acdf810712aa562db8dfa3dbef',
+          tokenType: 'NATIVE',
+          transactionGasFee: 6389164250000n,
+          transactionHash: '0xc0e1850d24af965e6a02836301a696e9f021b07fed765d8affe3bda1846d5700',
         },
       ],
     },
