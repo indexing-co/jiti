@@ -18,6 +18,23 @@ export const RippleTokenTransfers: SubTemplate = {
       if (typedTx.TransactionType !== 'Payment') {
         continue;
       }
+      // Failed XRPL payments still burn Fee. Emit a fee-only transfer (to: null) so
+      // callers account for the gas, and skip the payment amount that never landed.
+      if (typedTx.metaData?.TransactionResult && typedTx.metaData.TransactionResult !== 'tesSUCCESS') {
+        transfers.push({
+          amount: BigInt(typedTx.Fee ?? '0'),
+          blockNumber: parseInt(typedBlock.ledger_index, 10),
+          from: typedTx.Account ?? 'UNKNOWN',
+          memo: typedTx.DestinationTag,
+          timestamp: typedBlock.close_time_iso || null,
+          to: null,
+          token: 'XRP',
+          tokenType: 'NATIVE',
+          transactionGasFee: BigInt(typedTx.Fee ?? '0'),
+          transactionHash: typedTx.hash ?? '',
+        });
+        continue;
+      }
       const deliveredOrAmount = (typedTx.metaData?.delivered_amount ?? typedTx.Amount ?? '0') as
         | string
         | { currency: string; issuer: string; value: string };
@@ -72,6 +89,41 @@ export const RippleTokenTransfers: SubTemplate = {
           tokenType: 'NATIVE',
           transactionGasFee: 10000n,
           transactionHash: 'B32A6A5455777283212407FBD8CCA701505C654E5F4ADFFBE9D4D22F00889D87',
+        },
+      ],
+    },
+    // Failed XRPL payments emit ONLY a fee transfer (to: null) — the payment Amount
+    // never reached the Destination, but the Fee was still burned.
+    {
+      params: { network: 'RIPPLE' },
+      payload: {
+        _network: 'RIPPLE',
+        ledger_index: '100000000',
+        close_time_iso: '2026-04-04T08:02:44Z',
+        transactions: [
+          {
+            TransactionType: 'Payment',
+            Account: 'rFAILFROMxxxxxxxxxxxxxxxxxxxxxxxxx',
+            Destination: 'rFAILTOxxxxxxxxxxxxxxxxxxxxxxxxxx',
+            Amount: '1000000',
+            Fee: '10',
+            hash: 'FAILEDXRPLTXHASH',
+            metaData: { TransactionResult: 'tecPATH_DRY' },
+          },
+        ],
+      },
+      output: [
+        {
+          amount: 10n,
+          blockNumber: 100000000,
+          from: 'rFAILFROMxxxxxxxxxxxxxxxxxxxxxxxxx',
+          memo: undefined,
+          timestamp: '2026-04-04T08:02:44Z',
+          to: null,
+          token: 'XRP',
+          tokenType: 'NATIVE',
+          transactionGasFee: 10n,
+          transactionHash: 'FAILEDXRPLTXHASH',
         },
       ],
     },
