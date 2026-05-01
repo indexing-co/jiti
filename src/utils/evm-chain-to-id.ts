@@ -24,6 +24,7 @@ const CHAIN_ID: Record<string, number> = {
   CHILIZ_SPICY: 88882,
   COMMONS: 510003,
   CORE: 1116,
+  CRONOS: 25,
   CX_TESTNET: 70707,
   CYBER: 7560,
   DEGEN: 666666666,
