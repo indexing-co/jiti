@@ -62,6 +62,7 @@ const CHAIN_ID: Record<string, number> = {
   LYRA: 957,
   LYRA_SEPOLIA: 901,
   MANTLE: 5000,
+  MEGAETH: 4326,
   MEGAETH_TESTNET: 6342,
   METIS: 1088,
   MODE: 34443,
