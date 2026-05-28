@@ -3,7 +3,6 @@ import tronWeb3 from 'tronweb';
 import { Template, TemplateTest } from '../types';
 import { blockToVM } from '../utils/block-to-vm';
 import tokenTransfersTemplate from './token-transfers';
-import { snapchainParseEvent, HubEventMessage } from '../utils/snapchain-parse-event';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
@@ -135,30 +134,6 @@ const filterValuesTemplate: Template = {
               finalValues.add((tx[key] as Record<string, string>)?.issuer);
             }
           }
-        }
-        break;
-      }
-
-      case 'SNAPCHAIN': {
-        const typedBlock = block as {
-          shards?: {
-            transactions?: { user_messages: HubEventMessage[] }[];
-          }[];
-          transactions?: { user_messages: HubEventMessage[] }[];
-          processed?: { fid: number }[];
-        };
-
-        let parsed: Record<string, unknown>[] = [];
-        if (typedBlock.processed?.length) parsed = typedBlock.processed;
-        else {
-          const shards = (typedBlock.shards ? typedBlock.shards : [block]) as (typeof typedBlock)['shards'];
-          const messages = shards.map((s) => s.transactions?.map((t) => t.user_messages || []).flat()).flat();
-          parsed = messages.map(snapchainParseEvent);
-        }
-
-        for (const p of parsed) {
-          if (!p) continue;
-          finalValues.add(`${p.fid}`);
         }
         break;
       }
@@ -7605,59 +7580,6 @@ const filterValuesTemplate: Template = {
         '0xda116c9007ec7baa411e11e0fecbebe5618c3a4707b35d14f5a804e3ed377bcc',
         '0xde2fb400352ecaa78ef076361b675a95f851f9b4943b7a07907a2b5c908385b8',
         '0xe7f571ba7d04d6bc88f519289bc4f94a54fb25634128b3f9884d64904db32c12',
-      ],
-    },
-
-    {
-      params: {},
-      payload: 'https://jiti.indexing.co/networks/farcaster/2442805',
-      output: [
-        '1053494',
-        '1066546',
-        '1090343',
-        '1131909',
-        '1134046',
-        '1134910',
-        '1135798',
-        '1139813',
-        '1146560',
-        '1148283',
-        '1163463',
-        '1164305',
-        '1167631',
-        '1167984',
-        '1181162',
-        '1182140',
-        '1186458',
-        '1198272',
-        '1230161',
-        '1275123',
-        '1278167',
-        '12938',
-        '1322761',
-        '1332557',
-        '1334507',
-        '1337870',
-        '1337940',
-        '310644',
-        '319554',
-        '377148',
-        '430267',
-        '432992',
-        '448300',
-        '455743',
-        '467181',
-        '474644',
-        '511842',
-        '541835',
-        '618593',
-        '789371',
-        '864838',
-        '897445',
-        '902685',
-        '905676',
-        '957928',
-        '969084',
       ],
     },
 
