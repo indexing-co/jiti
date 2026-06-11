@@ -2,13 +2,43 @@ import { Cell } from '@ton/core';
 import { SubTemplate } from '../../types';
 import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
-import type { TonBlock } from '../../types/beats/ton';
+import type { TonBlock, TonBlockShardsTransactionsOutMsgs } from '../../types/beats/ton';
 
 // TEP-74 jetton `internal_transfer` op-code. This is the message a recipient's
 // jetton wallet receives when it is credited, so it is the canonical signal of a
 // jetton deposit landing — and the only jetton message whose executing account
 // (`tx.address`) is the recipient jetton wallet itself.
 const JETTON_INTERNAL_TRANSFER_OP = 0x178d4519;
+
+// TEP-74 jetton `transfer_notification` op-code. A recipient's jetton wallet
+// sends this to its OWNER, in the same transaction that credits it, when the
+// transfer carried `forward_ton_amount > 0`. Its destination is the only in-band
+// signal of the owner behind a jetton wallet; absent for `forward_ton_amount == 0`
+// (the owner then cannot be resolved without a contract-state lookup).
+const JETTON_TRANSFER_NOTIFICATION_OP = 0x7362d09c;
+
+// Resolve the owner behind a recipient jetton wallet from the wallet's
+// `transfer_notification` out-message. Returns undefined when none is present
+// (forward_ton_amount == 0) or the body is not a recognisable BoC.
+function recipientOwnerFromNotification(outMsgs: TonBlockShardsTransactionsOutMsgs[] | undefined): string | undefined {
+  for (const out of outMsgs || []) {
+    const body = out.msg_data?.body;
+    if (!body) {
+      continue;
+    }
+
+    try {
+      const slice = Cell.fromBoc(Buffer.from(body, 'base64'))[0].beginParse();
+      if (slice.loadUint(32) === JETTON_TRANSFER_NOTIFICATION_OP) {
+        return out.destination?.account_address;
+      }
+    } catch {
+      // Not a BoC / unexpected shape — keep scanning the remaining out-messages.
+    }
+  }
+
+  return undefined;
+}
 
 type JettonInternalTransfer = {
   amount: bigint;
@@ -84,13 +114,24 @@ export const TONTokenTransfers: SubTemplate = {
         // — the sender's and the recipient's transactions both fall in range.
         const jetton = decodeJettonInternalTransfer(inMsg.msg_data?.body);
         if (jetton) {
+          // Jetton transfers settle on per-(owner, jetton) wallets, not on the
+          // owners. Surface owners on `from`/`to` (matching the Solana
+          // convention) and the settling jetton wallets on
+          // `fromTokenAccount`/`toTokenAccount`. The recipient owner is the
+          // destination of the `transfer_notification` the wallet forwards in
+          // this same transaction when `forward_ton_amount > 0`; absent for
+          // `forward_ton_amount == 0`, where `to` falls back to the jetton wallet
+          // (the owner is not recoverable without a contract-state lookup).
+          const recipientOwner = recipientOwnerFromNotification(tx.out_msgs);
           // Jetton and native value are mutually exclusive per message: a jetton
           // `internal_transfer` also carries forwarded gas as `in_msg.value`, so
           // emitting a native transfer here too would surface a phantom TON hop.
           transfers.push({
             blockNumber,
             from: jetton.from || inMsg.source?.account_address,
-            to,
+            fromTokenAccount: inMsg.source?.account_address,
+            to: recipientOwner || to,
+            toTokenAccount: to,
             amount: jetton.amount,
             // The jetton master is not carried in the wallet-to-wallet
             // `internal_transfer`; a stateless template can't resolve it without
@@ -146,10 +187,13 @@ export const TONTokenTransfers: SubTemplate = {
       ],
     },
     {
-      // Jetton transfer — `in_msg` is an internal_transfer (op 0x178d4519). The
-      // message also carries 49740664 nanoTON of forwarded gas, which must NOT
-      // surface as a phantom native transfer. `token` is left undefined (the
-      // jetton master is not in the wallet-to-wallet message).
+      // Jetton transfer — `in_msg` is an internal_transfer (op 0x178d4519) that
+      // also carries forwarded gas as `in_msg.value`, which must NOT surface as a
+      // phantom native transfer. `token` is left undefined (the jetton master is
+      // not in the wallet-to-wallet message). This transfer carried
+      // `forward_ton_amount > 0`, so the recipient wallet forwarded a
+      // `transfer_notification` to its owner: `from`/`to` are the owners and
+      // `fromTokenAccount`/`toTokenAccount` are the jetton wallets.
       params: {
         network: 'TON',
         transactionHash: 'Tx+nOxUzqo8kYpNkX20C2OTg6Dd9d6MHadQsknv4620=',
@@ -159,7 +203,9 @@ export const TONTokenTransfers: SubTemplate = {
         {
           blockNumber: 71399000,
           from: 'EQDshc_H_RAJNi5CG1oBQfUQ1lQBB6tz54Kf2h756Xp14_Cv',
-          to: 'EQBMzIc7YUB_WkSkmaIooZyONQDayNfipt3PQ4IJRsGXsPGI',
+          fromTokenAccount: 'EQBkdsNpKnwQ-TRIKDo33AUxe1EAXdY1RqcgrvCDC3AeEVz-',
+          to: 'EQBQmL3n0mWa1Uo0qlQlauc47bmqJMugKRu_lYJDUGVYmut1',
+          toTokenAccount: 'EQBMzIc7YUB_WkSkmaIooZyONQDayNfipt3PQ4IJRsGXsPGI',
           amount: 2800000000n,
           tokenType: 'TOKEN',
           timestamp: '2026-06-05T15:31:47.000Z',
