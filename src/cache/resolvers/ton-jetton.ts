@@ -2,6 +2,7 @@ import { Address, Cell } from '@ton/core';
 
 import { cacheGet } from '../index';
 import { registerCacheNamespace } from '../registry';
+import { getRpcHosts } from '../rpc-hosts';
 import { CacheStorage, JettonWalletData } from '../types';
 
 // Resolves a TON jetton wallet → { owner, master } via the standard `get_wallet_data`
@@ -21,16 +22,6 @@ const ORBS_REFRESH_MS = 5 * 60 * 1000;
 let orbsHosts: string[] = [];
 let orbsRefreshedAt = 0;
 
-// Consumer-injected TON RPC hosts (toncenter v2 jsonRPC-compatible base hosts). When set, the
-// resolver uses THESE instead of Orbs discovery — e.g. the indexer injects oscar's configured
-// TON hosts (BlockPi/QuickNode from network_connections) so jiti hits the same hosts oscar uses
-// and avoids Orbs's per-IP rate limit on the oscar box. Empty ⇒ fall back to Orbs discovery.
-let configuredHosts: string[] = [];
-
-export function setTonRpcHosts(hosts: string[]): void {
-  configuredHosts = (hosts || []).filter(Boolean);
-}
-
 type OrbsNode = { NodeId: string; Healthy: string; Mngr?: { health?: Record<string, boolean> } };
 
 function shuffled(hosts: string[]): string[] {
@@ -49,8 +40,9 @@ function buildUrl(host: string): string {
 }
 
 async function getHosts(): Promise<string[]> {
-  if (configuredHosts.length) {
-    return shuffled(configuredHosts).map(buildUrl);
+  const configured = getRpcHosts('TON');
+  if (configured.length) {
+    return shuffled(configured).map(buildUrl);
   }
   if (orbsHosts.length && Date.now() - orbsRefreshedAt < ORBS_REFRESH_MS) {
     return shuffled(orbsHosts);
