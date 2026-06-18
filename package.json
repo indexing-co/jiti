@@ -42,5 +42,13 @@
     "isomorphic-fetch": "^3.0.0",
     "tronweb": "^6.0.4",
     "viem": "^2.21.1"
+  },
+  "peerDependencies": {
+    "pg": ">=8"
+  },
+  "peerDependenciesMeta": {
+    "pg": {
+      "optional": true
+    }
   }
 }
