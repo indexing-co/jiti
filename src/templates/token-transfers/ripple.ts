@@ -3,6 +3,67 @@ import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
 import type { RippleLedger } from '../../types/beats/ripple';
 
+// XRPL issued-currency codes are either a 3-char ISO-style code ("USD", "MAG") or a 160-bit
+// (40 hex char) value. Standard hex codes encode the ASCII symbol in the leading bytes (e.g.
+// "42495478…" -> "BITx"); non-standard codes (LP tokens, demurrage) aren't printable ASCII, so
+// we keep the raw hex for those.
+function decodeXrplCurrency(currency: string | undefined): string {
+  if (!currency) return 'UNKNOWN';
+  if (!/^[0-9A-Fa-f]{40}$/.test(currency)) {
+    return currency;
+  }
+  let decoded = '';
+  for (let i = 0; i < currency.length; i += 2) {
+    const code = parseInt(currency.slice(i, i + 2), 16);
+    if (code === 0) continue; // strip NUL padding
+    decoded += String.fromCharCode(code);
+  }
+  // only use the decoded form if it's entirely printable ASCII; otherwise the hex is the identity
+  return decoded && /^[\x20-\x7e]+$/.test(decoded) ? decoded : currency.toUpperCase();
+}
+
+// XRPL issued-currency amounts are arbitrary-precision decimal strings (up to 15 significant
+// digits, wide exponent range) with no fixed on-chain integer unit. Parse them losslessly into a
+// (mantissa, decimals) pair using string/BigInt math — NEVER parseFloat, which silently rounds
+// (the old `round(value * 1e6)` reported 0.00026764546195073 BITX as "268"). Handles plain and
+// scientific-notation values; trailing fractional zeros are trimmed so the scale is minimal.
+function xrplIssuedValueToAmount(raw: string | undefined): { amount: bigint; decimals: number } {
+  let s = (raw ?? '0').trim();
+  let negative = false;
+  if (s.startsWith('-')) {
+    negative = true;
+    s = s.slice(1);
+  } else if (s.startsWith('+')) {
+    s = s.slice(1);
+  }
+
+  let exponent = 0;
+  const eIndex = s.search(/[eE]/);
+  if (eIndex !== -1) {
+    exponent = parseInt(s.slice(eIndex + 1), 10) || 0;
+    s = s.slice(0, eIndex);
+  }
+
+  const [intPart = '', fracPart = ''] = s.split('.');
+  let digits = (intPart + fracPart).replace(/^0+(?=\d)/, '') || '0';
+  let decimals = fracPart.length - exponent;
+
+  if (decimals < 0) {
+    // value scales up past the integer point — append zeros and clamp to 0 decimals
+    digits += '0'.repeat(-decimals);
+    decimals = 0;
+  }
+
+  let amount = BigInt(digits || '0');
+  // trim trailing fractional zeros so e.g. "10.00" -> { amount: 10n, decimals: 0 }
+  while (decimals > 0 && amount % 10n === 0n) {
+    amount /= 10n;
+    decimals -= 1;
+  }
+
+  return { amount: negative ? -amount : amount, decimals };
+}
+
 export const RippleTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'RIPPLE',
 
@@ -42,18 +103,21 @@ export const RippleTokenTransfers: SubTemplate = {
       let tokenType: 'NATIVE' | 'TOKEN' | 'NFT' = 'NATIVE';
 
       let parsedAmount: bigint;
+      // Only issued currencies carry an explicit scale; native XRP stays in integer drops.
+      let decimals: number | undefined;
 
       if (typeof deliveredOrAmount === 'object') {
-        tokenSymbol = deliveredOrAmount.currency?.toUpperCase() ?? 'UNKNOWN';
+        tokenSymbol = decodeXrplCurrency(deliveredOrAmount.currency);
         tokenType = 'TOKEN';
-        const floatVal = parseFloat(deliveredOrAmount.value);
-        const smallestUnit = Math.round(floatVal * 1_000_000);
-        parsedAmount = BigInt(smallestUnit);
+        const scaled = xrplIssuedValueToAmount(deliveredOrAmount.value);
+        parsedAmount = scaled.amount;
+        decimals = scaled.decimals;
       } else {
         parsedAmount = BigInt(String(deliveredOrAmount));
       }
       transfers.push({
         amount: parsedAmount,
+        ...(decimals !== undefined ? { decimals } : {}),
         blockNumber: parseInt(typedBlock.ledger_index, 10),
         from: typedTx.Account ?? 'UNKNOWN',
         memo: typedTx.DestinationTag,
@@ -124,6 +188,117 @@ export const RippleTokenTransfers: SubTemplate = {
           tokenType: 'NATIVE',
           transactionGasFee: 10n,
           transactionHash: 'FAILEDXRPLTXHASH',
+        },
+      ],
+    },
+    // Issued-currency (IOU) amount: arbitrary-precision decimal, NOT XRP drops. This is the
+    // regression case — the old `round(value * 1e6)` reported 0.00026764546195073 BITX as "268".
+    // Now it's the exact mantissa + decimals, and the 40-hex currency decodes to its ASCII symbol.
+    {
+      params: { network: 'RIPPLE' },
+      payload: {
+        _network: 'RIPPLE',
+        ledger_index: '105011630',
+        close_time_iso: '2026-01-01T00:00:00Z',
+        transactions: [
+          {
+            TransactionType: 'Payment',
+            Account: 'rBITXFROMxxxxxxxxxxxxxxxxxxxxxxxxx',
+            Destination: 'rBITXTOxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+            Amount: {
+              currency: '4249547800000000000000000000000000000000',
+              issuer: 'rBitcoiNXev8VoVxV7pwoQx1sSfonVP9i3',
+              value: '0.00026764546195073',
+            },
+            Fee: '12',
+            hash: 'BITXSMALLHASH',
+            metaData: { TransactionResult: 'tesSUCCESS' },
+          },
+        ],
+      },
+      output: [
+        {
+          amount: 26764546195073n,
+          decimals: 17,
+          blockNumber: 105011630,
+          from: 'rBITXFROMxxxxxxxxxxxxxxxxxxxxxxxxx',
+          memo: undefined,
+          timestamp: '2026-01-01T00:00:00Z',
+          to: 'rBITXTOxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+          token: 'BITx',
+          tokenType: 'TOKEN',
+          transactionGasFee: 12n,
+          transactionHash: 'BITXSMALLHASH',
+        },
+      ],
+    },
+    // Large whole IOU value (no fractional digits) and a plain 3-char currency code.
+    {
+      params: { network: 'RIPPLE' },
+      payload: {
+        _network: 'RIPPLE',
+        ledger_index: '105011630',
+        close_time_iso: '2026-01-01T00:00:00Z',
+        transactions: [
+          {
+            TransactionType: 'Payment',
+            Account: 'rUSDFROMxxxxxxxxxxxxxxxxxxxxxxxxxx',
+            Destination: 'rUSDTOxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+            Amount: { currency: 'USD', issuer: 'rIssuerxxxxxxxxxxxxxxxxxxxxxxxxxxx', value: '1000000000000000' },
+            Fee: '15',
+            hash: 'USDWHOLEHASH',
+            metaData: { TransactionResult: 'tesSUCCESS' },
+          },
+        ],
+      },
+      output: [
+        {
+          amount: 1000000000000000n,
+          decimals: 0,
+          blockNumber: 105011630,
+          from: 'rUSDFROMxxxxxxxxxxxxxxxxxxxxxxxxxx',
+          memo: undefined,
+          timestamp: '2026-01-01T00:00:00Z',
+          to: 'rUSDTOxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+          token: 'USD',
+          tokenType: 'TOKEN',
+          transactionGasFee: 15n,
+          transactionHash: 'USDWHOLEHASH',
+        },
+      ],
+    },
+    // Scientific-notation IOU value parses exactly (1.5e-10 -> 15 * 10^-11).
+    {
+      params: { network: 'RIPPLE' },
+      payload: {
+        _network: 'RIPPLE',
+        ledger_index: '105011630',
+        close_time_iso: '2026-01-01T00:00:00Z',
+        transactions: [
+          {
+            TransactionType: 'Payment',
+            Account: 'rMAGFROMxxxxxxxxxxxxxxxxxxxxxxxxxx',
+            Destination: 'rMAGTOxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+            Amount: { currency: 'MAG', issuer: 'rXmagwMmnFtVet3uL26Q2iwk287SRvVMJ', value: '1.5e-10' },
+            Fee: '10',
+            hash: 'MAGSCIHASH',
+            metaData: { TransactionResult: 'tesSUCCESS' },
+          },
+        ],
+      },
+      output: [
+        {
+          amount: 15n,
+          decimals: 11,
+          blockNumber: 105011630,
+          from: 'rMAGFROMxxxxxxxxxxxxxxxxxxxxxxxxxx',
+          memo: undefined,
+          timestamp: '2026-01-01T00:00:00Z',
+          to: 'rMAGTOxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+          token: 'MAG',
+          tokenType: 'TOKEN',
+          transactionGasFee: 10n,
+          transactionHash: 'MAGSCIHASH',
         },
       ],
     },
