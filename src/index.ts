@@ -10,12 +10,8 @@ export const templates = { ...allTemplates };
 // cache-or-lookup enrichment layer (jiti owns the cache + resolvers; consumer injects storage)
 export { cacheGet, cacheSet, registerCacheNamespace } from './cache';
 export { createPostgresCacheStorage } from './cache/storage/postgres';
-export {
-  lookupJettonWallet,
-  resolveJettonWalletData,
-  setTonRpcHosts,
-  TON_JETTON_NAMESPACE,
-} from './cache/resolvers/ton-jetton';
+export { lookupJettonWallet, resolveJettonWalletData, TON_JETTON_NAMESPACE } from './cache/resolvers/ton-jetton';
+export { setRpcHosts, getRpcHosts } from './cache/rpc-hosts';
 export type { CacheStorage, CacheRow, CacheResolver, NamespacePolicy, JettonWalletData } from './cache/types';
 
 export function getAllTemplates() {
