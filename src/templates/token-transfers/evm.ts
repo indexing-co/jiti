@@ -24,7 +24,10 @@ export const EVMTokenTransfers: SubTemplate = {
       }
 
       const timestamp = new Date(typedBlock.timestamp * 1000).toISOString();
-      const transactionGasFee = BigInt(tx.receipt.gasUsed) * BigInt(tx.receipt.effectiveGasPrice);
+      // Some EVM forks (e.g. Cronos / Ethermint) omit effectiveGasPrice on the receipt;
+      // fall back to the tx's gasPrice so gas-fee math doesn't throw and drop the whole block.
+      const effectiveGasPrice = tx.receipt.effectiveGasPrice ?? tx.gasPrice ?? 0;
+      const transactionGasFee = BigInt(tx.receipt.gasUsed ?? 0) * BigInt(effectiveGasPrice);
 
       // check if this tx has zkSync native ETH Transfer logs (used to skip unreliable traces)
       const hasZkSyncEthLogs = tx.receipt.logs.some(
