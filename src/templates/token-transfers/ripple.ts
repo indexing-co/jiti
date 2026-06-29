@@ -101,6 +101,11 @@ export const RippleTokenTransfers: SubTemplate = {
         | { currency: string; issuer: string; value: string };
       let tokenSymbol = 'XRP';
       let tokenType: 'NATIVE' | 'TOKEN' | 'NFT' = 'NATIVE';
+      // An issued currency is uniquely identified by (currency, issuer) — two "USD"
+      // IOUs from different issuers are distinct tokens. Emit the token id as
+      // `<currency>.<issuer>` so consumers can match by issuer; native XRP has no
+      // issuer and keeps the bare "XRP" symbol.
+      let issuer: string | undefined;
 
       let parsedAmount: bigint;
       // Only issued currencies carry an explicit scale; native XRP stays in integer drops.
@@ -108,6 +113,7 @@ export const RippleTokenTransfers: SubTemplate = {
 
       if (typeof deliveredOrAmount === 'object') {
         tokenSymbol = decodeXrplCurrency(deliveredOrAmount.currency);
+        issuer = deliveredOrAmount.issuer;
         tokenType = 'TOKEN';
         const scaled = xrplIssuedValueToAmount(deliveredOrAmount.value);
         parsedAmount = scaled.amount;
@@ -123,7 +129,7 @@ export const RippleTokenTransfers: SubTemplate = {
         memo: typedTx.DestinationTag,
         timestamp: typedBlock.close_time_iso || null,
         to: typedTx.Destination ?? 'UNKNOWN',
-        token: tokenSymbol,
+        token: issuer ? `${tokenSymbol}.${issuer}` : tokenSymbol,
         tokenType: tokenType,
         transactionGasFee: BigInt(typedTx.Fee ?? '0'),
         transactionHash: typedTx.hash ?? '',
@@ -225,7 +231,7 @@ export const RippleTokenTransfers: SubTemplate = {
           memo: undefined,
           timestamp: '2026-01-01T00:00:00Z',
           to: 'rBITXTOxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-          token: 'BITx',
+          token: 'BITx.rBitcoiNXev8VoVxV7pwoQx1sSfonVP9i3',
           tokenType: 'TOKEN',
           transactionGasFee: 12n,
           transactionHash: 'BITXSMALLHASH',
@@ -260,7 +266,7 @@ export const RippleTokenTransfers: SubTemplate = {
           memo: undefined,
           timestamp: '2026-01-01T00:00:00Z',
           to: 'rUSDTOxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-          token: 'USD',
+          token: 'USD.rIssuerxxxxxxxxxxxxxxxxxxxxxxxxxxx',
           tokenType: 'TOKEN',
           transactionGasFee: 15n,
           transactionHash: 'USDWHOLEHASH',
@@ -295,7 +301,7 @@ export const RippleTokenTransfers: SubTemplate = {
           memo: undefined,
           timestamp: '2026-01-01T00:00:00Z',
           to: 'rMAGTOxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-          token: 'MAG',
+          token: 'MAG.rXmagwMmnFtVet3uL26Q2iwk287SRvVMJ',
           tokenType: 'TOKEN',
           transactionGasFee: 10n,
           transactionHash: 'MAGSCIHASH',
