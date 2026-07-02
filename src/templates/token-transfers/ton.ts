@@ -1,4 +1,4 @@
-import { Cell } from '@ton/core';
+import { Cell, beginCell } from '@ton/core';
 import { SubTemplate } from '../../types';
 import { blockToVM } from '../../utils/block-to-vm';
 import { NetworkTransfer } from './types';
@@ -52,6 +52,31 @@ function decodeJettonInternalTransfer(body: string | undefined): JettonInternalT
   }
 }
 
+// Other TEP-74 jetton messages whose `in_msg.value` is only forwarded gas or a
+// refund — never a user-facing TON transfer. Emitting a native transfer for
+// these surfaces phantom TON hops around every jetton send:
+//   0x0f8a7ea5 transfer              — owner → own jetton wallet (attached gas)
+//   0x7362d09c transfer_notification — jetton wallet → owner (forwarded gas)
+//   0xd53276db excesses              — jetton wallet → response addr (gas refund)
+// `internal_transfer` (0x178d4519) is handled above as the jetton TOKEN row.
+const JETTON_GAS_ONLY_OPS = new Set<number>([0x0f8a7ea5, 0x7362d09c, 0xd53276db]);
+
+// True when the message body carries one of the jetton gas-only op-codes above.
+// Reads only the 32-bit op-code; returns false for text comments, empty/non-BoC
+// bodies, or any other op — which fall through to the native path.
+function isJettonGasOnlyMessage(body: string | undefined): boolean {
+  if (!body) {
+    return false;
+  }
+
+  try {
+    const slice = Cell.fromBoc(Buffer.from(body, 'base64'))[0].beginParse();
+    return JETTON_GAS_ONLY_OPS.has(slice.loadUint(32));
+  } catch {
+    return false;
+  }
+}
+
 export const TONTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'TON',
 
@@ -100,6 +125,14 @@ export const TONTokenTransfers: SubTemplate = {
             transactionHash,
             transactionGasFee,
           });
+          continue;
+        }
+
+        // A jetton send's own gas hops (transfer / transfer_notification /
+        // excesses) carry `in_msg.value` as forwarded gas, not a real TON
+        // transfer — skip them so they don't surface as phantom native transfers
+        // alongside the jetton `internal_transfer` row emitted above.
+        if (isJettonGasOnlyMessage(inMsg.msg_data?.body)) {
           continue;
         }
 
@@ -165,6 +198,104 @@ export const TONTokenTransfers: SubTemplate = {
           timestamp: '2026-06-05T15:31:47.000Z',
           transactionHash: 'Tx+nOxUzqo8kYpNkX20C2OTg6Dd9d6MHadQsknv4620=',
           transactionGasFee: 233386n,
+        },
+      ],
+    },
+    {
+      // Jetton gas hops must not surface as native transfers. Synthetic block
+      // (inline payload, no network) with four txs: a genuine native transfer,
+      // an `excesses` (0xd53276db), a `transfer_notification` (0x7362d09c), and a
+      // jetton `internal_transfer` (0x178d4519). Only the native and the jetton
+      // rows survive; the two gas-only ops are dropped despite carrying value.
+      params: { network: 'TON' },
+      payload: {
+        _network: 'TON',
+        seqno: 76697922,
+        shards: [
+          {
+            transactions: [
+              {
+                address: { account_address: 'EQrecipient_native' },
+                utime: 1782844609,
+                fee: '100',
+                transaction_id: { hash: 'native-hash' },
+                in_msg: {
+                  value: '1000000000',
+                  source: { account_address: 'EQsender_native' },
+                  msg_data: {},
+                },
+              },
+              {
+                address: { account_address: 'EQsubject' },
+                utime: 1782844609,
+                fee: '100',
+                transaction_id: { hash: 'excesses-hash' },
+                in_msg: {
+                  value: '49490794',
+                  source: { account_address: 'EQjetton_wallet' },
+                  msg_data: {
+                    body: beginCell().storeUint(0xd53276db, 32).storeUint(0, 64).endCell().toBoc().toString('base64'),
+                  },
+                },
+              },
+              {
+                address: { account_address: 'EQowner' },
+                utime: 1782844609,
+                fee: '100',
+                transaction_id: { hash: 'notification-hash' },
+                in_msg: {
+                  value: '49490794',
+                  source: { account_address: 'EQowner_jetton_wallet' },
+                  msg_data: {
+                    body: beginCell().storeUint(0x7362d09c, 32).storeUint(0, 64).endCell().toBoc().toString('base64'),
+                  },
+                },
+              },
+              {
+                address: { account_address: 'EQrecipient_jetton_wallet' },
+                utime: 1782844609,
+                fee: '200',
+                transaction_id: { hash: 'jetton-hash' },
+                in_msg: {
+                  value: '49740664',
+                  source: { account_address: 'EQsender_jetton_wallet' },
+                  msg_data: {
+                    body: beginCell()
+                      .storeUint(0x178d4519, 32)
+                      .storeUint(0, 64)
+                      .storeCoins(2800000000n)
+                      .storeAddress(null)
+                      .endCell()
+                      .toBoc()
+                      .toString('base64'),
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      output: [
+        {
+          blockNumber: 76697922,
+          from: 'EQsender_native',
+          to: 'EQrecipient_native',
+          amount: 1000000000n,
+          token: 'TON',
+          tokenType: 'NATIVE',
+          timestamp: '2026-06-30T18:36:49.000Z',
+          transactionHash: 'native-hash',
+          transactionGasFee: 100n,
+        },
+        {
+          blockNumber: 76697922,
+          from: 'EQsender_jetton_wallet',
+          to: 'EQrecipient_jetton_wallet',
+          amount: 2800000000n,
+          tokenType: 'TOKEN',
+          timestamp: '2026-06-30T18:36:49.000Z',
+          transactionHash: 'jetton-hash',
+          transactionGasFee: 200n,
         },
       ],
     },
