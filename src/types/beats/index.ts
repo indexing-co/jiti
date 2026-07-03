@@ -12,4 +12,5 @@ export * from './substrate';
 export * from './sui';
 export * from './svm';
 export * from './ton';
+export * from './tron';
 export * from './utxo';

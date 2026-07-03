@@ -15,6 +15,7 @@ import { StarknetTokenTransfers } from './starknet';
 import { StellarTokenTransfers } from './stellar';
 import { SubstrateTokenTransfers } from './substrate';
 import { TONTokenTransfers } from './ton';
+import { TRONTokenTransfers } from './tron';
 import { UTXOTokenTransfers } from './utxo';
 
 const SUB_TEMPLATES = [
@@ -28,6 +29,7 @@ const SUB_TEMPLATES = [
   SubstrateTokenTransfers,
   SUITokenTransfers,
   TONTokenTransfers,
+  TRONTokenTransfers,
   UTXOTokenTransfers,
 ];
 
