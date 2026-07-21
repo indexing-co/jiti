@@ -1,6 +1,6 @@
 {
   "name": "@indexing/jiti",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "description": "Just In Time Indexing, for all",
   "source": "src/index.ts",
   "main": "dist/main.js",
