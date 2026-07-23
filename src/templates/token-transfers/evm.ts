@@ -73,7 +73,24 @@ export const EVMTokenTransfers: SubTemplate = {
         }
         // pull from traces, if available
         else if (Array.isArray(tx.traces)) {
+          // Build a set of reverted trace-address prefixes. Any trace whose
+          // traceAddress starts with a reverted ancestor is itself rolled back
+          // even when the child trace carries no `error` of its own (the EVM
+          // rolls back all state changes under a reverted CALL/DELEGATECALL).
+          const revertedPrefixes: string[] = [];
+          for (const t of tx.traces) {
+            if (t.error && Array.isArray(t.traceAddress)) {
+              revertedPrefixes.push(t.traceAddress.join(',') + ',');
+            }
+          }
+
           for (const trace of tx.traces.filter((t) => t.action && !t.error)) {
+            // Skip traces whose ancestor reverted
+            if (revertedPrefixes.length && Array.isArray(trace.traceAddress)) {
+              const addr = trace.traceAddress.join(',') + ',';
+              if (revertedPrefixes.some((prefix) => addr.startsWith(prefix))) continue;
+            }
+
             const action = trace.action as unknown as { from: string; to: string; value: string };
             if (!action?.value) continue;
 
@@ -290,6 +307,19 @@ export const EVMTokenTransfers: SubTemplate = {
           transactionHash: '0x5235cbe22deba5dd8a42f36024b1df1c0f82a8e901e6cc176a38e2fe49b1d2e3',
         },
       ],
+    },
+    // Gnosis Safe execTransaction where the inner delegatecall reverts — the child
+    // traces (ETH transfers) complete without error but their parent is reverted,
+    // so the ETH never actually moved. Must produce zero native transfers.
+    // Ref: https://etherscan.io/tx/0xc3a2e97e51c2b85c3a1906c87f879907cd2ebdf47efa5c88b65eb09aa482c1ba
+    {
+      params: {
+        network: 'ETHEREUM',
+        walletAddress: '0x19787DfAE6c9F17D74b8e228c9DdfE56e0c0A616',
+        tokenTypes: ['NATIVE'],
+      },
+      payload: 'https://jiti.indexing.co/networks/ethereum/25596353',
+      output: [],
     },
   ],
 };
