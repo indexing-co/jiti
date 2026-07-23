@@ -73,7 +73,7 @@ export const EVMTokenTransfers: SubTemplate = {
         }
         // pull from traces, if available
         else if (Array.isArray(tx.traces)) {
-          for (const trace of tx.traces.filter((t) => t.action)) {
+          for (const trace of tx.traces.filter((t) => t.action && !t.error)) {
             const action = trace.action as unknown as { from: string; to: string; value: string };
             if (!action?.value) continue;
 
@@ -89,7 +89,7 @@ export const EVMTokenTransfers: SubTemplate = {
               transactionHash: tx.hash,
             });
           }
-        } else if ((tx.value as string)?.length >= 3 || /\d+/.test(tx.value as string)) {
+        } else if (tx.receipt.status !== false && ((tx.value as string)?.length >= 3 || /\d+/.test(tx.value as string))) {
           transfers.push({
             amount: BigInt(tx.value as string),
             blockNumber: tx.blockNumber as number,
