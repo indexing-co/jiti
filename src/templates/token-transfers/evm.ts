@@ -2,7 +2,7 @@ import { SubTemplate } from '../../types';
 import { NetworkTransfer } from './types';
 import { evmDecodeLogWithMetadata } from '../../utils';
 import { blockToVM } from '../../utils/block-to-vm';
-import type { EvmBlock } from '../../types/beats/evm';
+import type { EvmBlock, EvmBlockTransactionsOutOfBandTransfer } from '../../types/beats/evm';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
@@ -106,13 +106,50 @@ export const EVMTokenTransfers: SubTemplate = {
               transactionHash: tx.hash,
             });
           }
-        } else if (tx.receipt.status !== false && ((tx.value as string)?.length >= 3 || /\d+/.test(tx.value as string))) {
+        } else if (
+          tx.receipt.status !== false &&
+          ((tx.value as string)?.length >= 3 || /\d+/.test(tx.value as string))
+        ) {
           transfers.push({
             amount: BigInt(tx.value as string),
             blockNumber: tx.blockNumber as number,
             from: tx.from?.toLowerCase() || NULL_ADDRESS,
             timestamp,
             to: tx.to?.toLowerCase() || NULL_ADDRESS,
+            tokenType: 'NATIVE',
+            transactionGasFee,
+            transactionHash: tx.hash,
+          });
+        }
+
+        // Arbitrum Nitro / Orbit: value moved outside the EVM call tree.
+        //
+        // Additive rather than another `else if` — a retryable redemption has BOTH an EVM call
+        // tree and out-of-band movements, and they are different legs of the same deposit. The
+        // escrow release funds the redeemer, then the EVM call spends it; only the second leg is
+        // in `tx.traces`, so on its own it reads as an account spending value it never received.
+        //
+        // Only movements with BOTH ends are emitted. A null end is a mint/burn against the fee
+        // system (feePayment / gasRefund / feeCollection) — that is gas, already reported via
+        // `transactionGasFee`, and emitting it here would double-count it as a transfer.
+        const outOfBand = (tx.outOfBandTransfers as EvmBlockTransactionsOutOfBandTransfer[]) || [];
+        for (let i = 0; i < outOfBand.length; i++) {
+          const oob = outOfBand[i];
+          if (!oob?.from || !oob?.to || !oob?.value) continue;
+
+          const amount = BigInt(oob.value);
+          // retryable redemptions emit several zero-value bookkeeping legs; they carry no value
+          if (amount === 0n) continue;
+
+          transfers.push({
+            amount,
+            blockNumber: tx.blockNumber as number,
+            from: oob.from.toLowerCase(),
+            // position-scoped: the dedup key in index.ts includes `index`, and one tx can carry
+            // several movements of the same purpose between the same pair
+            index: `oob-${i}-${oob.purpose}`,
+            timestamp,
+            to: oob.to.toLowerCase(),
             tokenType: 'NATIVE',
             transactionGasFee,
             transactionHash: tx.hash,
@@ -320,6 +357,204 @@ export const EVMTokenTransfers: SubTemplate = {
       },
       payload: 'https://jiti.indexing.co/networks/ethereum/25596353',
       output: [],
+    },
+    // Arbitrum Orbit (Robinhood Chain) retryable-ticket redemption — a bridge deposit landing.
+    // ArbOS moves the value in two hops: an out-of-band `escrow` release funds the redeemer,
+    // then the EVM call spends it. Only the second hop is in `tx.traces`, so a trace-only read
+    // shows an account spending 18.7 ETH it was never seen to receive.
+    //
+    // Inline fixture rather than a URL: ROBINHOOD is not enabled in prod, so
+    // jiti.indexing.co serves no block for it.
+    // Ref: block 26983341, tx 0x2c71e49a… (type 0x68 ArbitrumRetryTx)
+    //
+    // Exercises all three exclusion rules:
+    //   - one-ended movements (prepaid/feePayment/gasRefund/undoRefund) are fee mint/burn,
+    //     already reported via transactionGasFee — must NOT become transfers
+    //   - zero-value bookkeeping legs must NOT become transfers
+    //   - both-ended non-zero movements (escrow, refund) MUST become NATIVE transfers
+    {
+      params: {
+        network: 'ROBINHOOD',
+        tokenTypes: ['NATIVE'],
+      },
+      payload: {
+        _network: 'ROBINHOOD',
+        number: 26983341,
+        timestamp: 1785782243,
+        transactions: [
+          {
+            hash: '0x2c71e49abff1a989dba62e0bf7ff8754f043dfe7325b92e6af7f07598211285e',
+            type: 104,
+            blockNumber: 26983341,
+            transactionIndex: 2,
+            from: '0x0f1439027fa720d0e6e266677b71843dc7609bc3',
+            to: '0xfd03abcadaf3f930fa4e37eb2f6ea3a44a41b7f0',
+            value: '0x1040a542b240c3958',
+            receipt: {
+              blockNumber: 26983341,
+              gasUsed: 21062,
+              effectiveGasPrice: 20776000,
+              status: true,
+              logs: [],
+            },
+            traces: [
+              {
+                action: {
+                  callType: 'call',
+                  from: '0x0f1439027fa720d0e6e266677b71843dc7609bc3',
+                  gas: '0x5246',
+                  to: '0xfd03abcadaf3f930fa4e37eb2f6ea3a44a41b7f0',
+                  value: '0x1040a542b240c3958',
+                },
+                blockNumber: 26983341,
+                result: {},
+                subtraces: 0,
+                traceAddress: [],
+                transactionHash: '0x2c71e49abff1a989dba62e0bf7ff8754f043dfe7325b92e6af7f07598211285e',
+                transactionPosition: 2,
+                type: 'call',
+              },
+            ],
+            outOfBandTransfers: [
+              // 0 — both ends, non-zero: the deposit funding leg. MUST be emitted.
+              {
+                purpose: 'escrow',
+                from: '0x6d0f620CcE7aC81b563f505Dd2C35384581398fe',
+                to: '0x0F1439027Fa720d0e6E266677B71843dc7609bc3',
+                value: '0x1040a542b240c3958',
+              },
+              // 1-4 — one-ended fee machinery. Must NOT be emitted (that is gas).
+              {
+                purpose: 'prepaid',
+                from: null,
+                to: '0x0F1439027Fa720d0e6E266677B71843dc7609bc3',
+                value: '0x24479883000',
+              },
+              {
+                purpose: 'feePayment',
+                from: '0x0F1439027Fa720d0e6E266677B71843dc7609bc3',
+                to: null,
+                value: '0x24479883000',
+              },
+              {
+                purpose: 'gasRefund',
+                from: null,
+                to: '0x0F1439027Fa720d0e6E266677B71843dc7609bc3',
+                value: '0x1de977c8680',
+              },
+              {
+                purpose: 'undoRefund',
+                from: '0x0F1439027Fa720d0e6E266677B71843dc7609bc3',
+                to: null,
+                value: '0x1de977c8680',
+              },
+              // 5, 7, 9 — both ends, non-zero: fee refunds to the beneficiary. MUST be emitted.
+              // 6, 8, 10, 11 — both ends but zero-value bookkeeping. Must NOT be emitted.
+              {
+                purpose: 'refund',
+                from: '0xbC5C3a7Adecf54D34169fd90dbD1B7d3142DF067',
+                to: '0x0e14abcaDAF3F930fa4e37eb2f6EA3A44A41C901',
+                value: '0x367647ccf8',
+              },
+              {
+                purpose: 'refund',
+                from: '0xbC5C3a7Adecf54D34169fd90dbD1B7d3142DF067',
+                to: '0x0F1439027Fa720d0e6E266677B71843dc7609bc3',
+                value: '0x0',
+              },
+              {
+                purpose: 'refund',
+                from: '0x5a2B80a9b7effc06129bD5462D77BC20A8A59BE7',
+                to: '0x0e14abcaDAF3F930fa4e37eb2f6EA3A44A41C901',
+                value: '0x1ccb7497200',
+              },
+              {
+                purpose: 'refund',
+                from: '0x5a2B80a9b7effc06129bD5462D77BC20A8A59BE7',
+                to: '0x0F1439027Fa720d0e6E266677B71843dc7609bc3',
+                value: '0x0',
+              },
+              {
+                purpose: 'refund',
+                from: '0xbC5C3a7Adecf54D34169fd90dbD1B7d3142DF067',
+                to: '0x0e14abcaDAF3F930fa4e37eb2f6EA3A44A41C901',
+                value: '0x11e0331480',
+              },
+              {
+                purpose: 'refund',
+                from: '0xbC5C3a7Adecf54D34169fd90dbD1B7d3142DF067',
+                to: '0x0F1439027Fa720d0e6E266677B71843dc7609bc3',
+                value: '0x0',
+              },
+              {
+                purpose: 'escrow',
+                from: '0x6d0f620CcE7aC81b563f505Dd2C35384581398fe',
+                to: '0x0e14abcaDAF3F930fa4e37eb2f6EA3A44A41C901',
+                value: '0x0',
+              },
+            ],
+          },
+        ],
+      },
+      output: [
+        // the EVM call leg — what a trace-only reader sees today
+        {
+          amount: 18737881743893477720n,
+          blockNumber: 26983341,
+          from: '0x0f1439027fa720d0e6e266677b71843dc7609bc3',
+          index: '',
+          timestamp: '2026-08-03T18:37:23.000Z',
+          to: '0xfd03abcadaf3f930fa4e37eb2f6ea3a44a41b7f0',
+          tokenType: 'NATIVE',
+          transactionGasFee: 437584112000n,
+          transactionHash: '0x2c71e49abff1a989dba62e0bf7ff8754f043dfe7325b92e6af7f07598211285e',
+        },
+        // the funding leg — invisible before this change
+        {
+          amount: 18737881743893477720n,
+          blockNumber: 26983341,
+          from: '0x6d0f620cce7ac81b563f505dd2c35384581398fe',
+          index: 'oob-0-escrow',
+          timestamp: '2026-08-03T18:37:23.000Z',
+          to: '0x0f1439027fa720d0e6e266677b71843dc7609bc3',
+          tokenType: 'NATIVE',
+          transactionGasFee: 437584112000n,
+          transactionHash: '0x2c71e49abff1a989dba62e0bf7ff8754f043dfe7325b92e6af7f07598211285e',
+        },
+        {
+          amount: 233912651000n,
+          blockNumber: 26983341,
+          from: '0xbc5c3a7adecf54d34169fd90dbd1b7d3142df067',
+          index: 'oob-5-refund',
+          timestamp: '2026-08-03T18:37:23.000Z',
+          to: '0x0e14abcadaf3f930fa4e37eb2f6ea3a44a41c901',
+          tokenType: 'NATIVE',
+          transactionGasFee: 437584112000n,
+          transactionHash: '0x2c71e49abff1a989dba62e0bf7ff8754f043dfe7325b92e6af7f07598211285e',
+        },
+        {
+          amount: 1978760000000n,
+          blockNumber: 26983341,
+          from: '0x5a2b80a9b7effc06129bd5462d77bc20a8a59be7',
+          index: 'oob-7-refund',
+          timestamp: '2026-08-03T18:37:23.000Z',
+          to: '0x0e14abcadaf3f930fa4e37eb2f6ea3a44a41c901',
+          tokenType: 'NATIVE',
+          transactionGasFee: 437584112000n,
+          transactionHash: '0x2c71e49abff1a989dba62e0bf7ff8754f043dfe7325b92e6af7f07598211285e',
+        },
+        {
+          amount: 76775888000n,
+          blockNumber: 26983341,
+          from: '0xbc5c3a7adecf54d34169fd90dbd1b7d3142df067',
+          index: 'oob-9-refund',
+          timestamp: '2026-08-03T18:37:23.000Z',
+          to: '0x0e14abcadaf3f930fa4e37eb2f6ea3a44a41c901',
+          tokenType: 'NATIVE',
+          transactionGasFee: 437584112000n,
+          transactionHash: '0x2c71e49abff1a989dba62e0bf7ff8754f043dfe7325b92e6af7f07598211285e',
+        },
+      ],
     },
   ],
 };
