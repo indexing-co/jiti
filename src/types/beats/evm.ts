@@ -62,6 +62,27 @@ export interface EvmBlockTransactionsReceipt {
   timeboosted?: boolean;
 }
 
+/**
+ * Value movements applied outside the EVM call tree.
+ *
+ * Arbitrum Nitro / Orbit chains surface these on the callTracer result as
+ * `beforeEVMTransfers` / `afterEVMTransfers`. They carry ArbOS-level gas
+ * accounting (`feePayment`, `gasRefund`, `feeCollection`) and — critically —
+ * retryable-ticket flows (`escrow`, `prepaid`, `undoRefund`, `refund`) plus
+ * `selfDestruct`. A bridge deposit landing via a retryable redemption moves its
+ * value in two hops, and only the second appears in the EVM trace tree, so a
+ * trace-only reader misses the funding leg entirely.
+ *
+ * A `null` end means the value was minted or burned against the fee system
+ * rather than moved between accounts.
+ */
+export interface EvmBlockTransactionsOutOfBandTransfer {
+  purpose: string;
+  from: string | null;
+  to: string | null;
+  value: string;
+}
+
 export interface EvmBlockTransactionsTracesAction {
   from: string;
   callType?: string;
@@ -122,6 +143,8 @@ export interface EvmBlockTransactions {
   sourceHash?: string;
   mint?: string;
   depositReceiptVersion?: string;
+  // Arbitrum Nitro / Orbit: value moved outside the EVM call tree (see the interface docs).
+  outOfBandTransfers?: EvmBlockTransactionsOutOfBandTransfer[];
 }
 
 export interface EvmBlockWithdrawals {
