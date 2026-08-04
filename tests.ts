@@ -10,6 +10,7 @@ BigInt.prototype['toJSON'] = function () {
 
 async function runTests() {
   let failures = 0;
+  let skipped = 0;
 
   for (const key in templates) {
     if (!templates[key].tests?.length) {
@@ -23,6 +24,16 @@ async function runTests() {
       // enabled in prod). Remote payloads still fetch from the API as before.
       const isRemote = typeof test.payload === 'string';
       const label = isRemote ? (test.payload as string) : `inline#${idx} ${JSON.stringify(test.params)}`;
+
+      // Remote tests need an API_KEY. CI does not provide one (publish.yml passes only
+      // DEPLOY_KEY), so every fetch there would 401 and, now that the run exits non-zero,
+      // would block publishing outright. Skip them when unkeyed rather than fail: the
+      // offline fixtures still run, so CI gates on something real for the first time.
+      if (isRemote && !process.env.API_KEY) {
+        skipped++;
+        continue;
+      }
+
       console.log('->', label);
       let outputPath = '';
 
@@ -54,6 +65,10 @@ async function runTests() {
         }
       }
     }
+  }
+
+  if (skipped) {
+    console.log(`\nskipped ${skipped} remote test(s) — set API_KEY to run them`);
   }
 
   return failures;
