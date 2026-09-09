@@ -4,6 +4,7 @@ import type { CardanoBlock } from '../types/beats/cardano';
 import type { CosmosBlock } from '../types/beats/cosmos';
 import type { EvmBlock } from '../types/beats/evm';
 import type { FilecoinBlock } from '../types/beats/filecoin';
+import type { HederaBlock } from '../types/beats/hedera';
 import type { RippleLedger } from '../types/beats/ripple';
 import type { StarknetBlock } from '../types/beats/starknet';
 import type { StellarLedger } from '../types/beats/stellar';
@@ -31,6 +32,9 @@ export function blockToBeat(block: Record<string, unknown>): number {
     }
     case 'FILECOIN': {
       return (block as unknown as FilecoinBlock).Height;
+    }
+    case 'HEDERA': {
+      return (block as unknown as HederaBlock).number;
     }
     case 'RIPPLE': {
       return parseInt((block as unknown as RippleLedger).ledger_index, 10);

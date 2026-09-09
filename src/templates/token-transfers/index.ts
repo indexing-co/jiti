@@ -5,6 +5,7 @@ import { CardanoTokenTransfers } from './cardano';
 import { CosmosTokenTransfers } from './cosmos';
 import { EVMTokenTransfers } from './evm';
 import { FilecoinTokenTransfers } from './filecoin';
+import { HederaTokenTransfers } from './hedera';
 import { NetworkTransfer } from './types';
 import { CacheStorage } from '../../cache/types';
 import { lookupJettonWallet } from '../../cache/resolvers/ton-jetton';
@@ -23,6 +24,7 @@ const SUB_TEMPLATES = [
   AptosTokenTransfers,
   CardanoTokenTransfers,
   FilecoinTokenTransfers,
+  HederaTokenTransfers,
   RippleTokenTransfers,
   SVMTokenTransfers,
   StarknetTokenTransfers,

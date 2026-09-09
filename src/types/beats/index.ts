@@ -5,6 +5,7 @@ export * from './cardano';
 export * from './cosmos';
 export * from './evm';
 export * from './filecoin';
+export * from './hedera';
 export * from './ripple';
 export * from './starknet';
 export * from './stellar';
