@@ -2,9 +2,13 @@ import tronWeb3 from 'tronweb';
 
 import { Template, TemplateTest } from '../types';
 import { blockToVM } from '../utils/block-to-vm';
+import type { HederaTransaction } from '../types/beats/hedera';
 import tokenTransfersTemplate from './token-transfers';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+// Hedera fee collector, staking reward, node reward and fee collection accounts.
+const HEDERA_SYSTEM_ACCOUNTS = new Set(['0.0.98', '0.0.800', '0.0.801', '0.0.802']);
 
 const filterValuesTemplate: Template = {
   key: 'filter_values',
@@ -102,6 +106,38 @@ const filterValuesTemplate: Template = {
           finalValues = finalValues
             .map((fv) => (fv.length === 42 ? [tronWeb3.utils.address.fromHex(fv), fv] : fv))
             .flat();
+        }
+        break;
+      }
+
+      // Hedera NATIVE. The seeding above already covers every transfer counterparty, so this
+      // adds only what a transfer edge cannot express: the fee payer, who signed the
+      // transaction even when it moved no value, and the HTS token / NFT ids that token
+      // filters match on. System fee and reward accounts and the submitting node are left
+      // out deliberately — they appear in essentially every record, so admitting them would
+      // make a watch on one match the entire chain.
+      case 'HEDERA': {
+        for (const tx of (block.transactions as HederaTransaction[]) || []) {
+          if (tx.result !== 'SUCCESS') continue;
+
+          finalValues.add(tx.transaction_id?.split('-')[0]);
+          if (tx.entity_id) {
+            finalValues.add(tx.entity_id);
+          }
+          for (const t of tx.transfers || []) {
+            if (t.account !== tx.node && !HEDERA_SYSTEM_ACCOUNTS.has(t.account)) {
+              finalValues.add(t.account);
+            }
+          }
+          for (const t of tx.token_transfers || []) {
+            finalValues.add(t.account);
+            finalValues.add(t.token_id);
+          }
+          for (const n of tx.nft_transfers || []) {
+            finalValues.add(n.sender_account_id);
+            finalValues.add(n.receiver_account_id);
+            finalValues.add(n.token_id);
+          }
         }
         break;
       }
@@ -280,6 +316,60 @@ const filterValuesTemplate: Template = {
   },
 
   tests: [
+    // Hedera NATIVE. Pins the two things the transfer seeding cannot reach — the fee payer
+    // of a transaction that moved no value, and HTS token ids — and pins the exclusions:
+    // a failed record contributes nothing, and the fee/reward/node accounts never leak in
+    // (0.0.802 and node 0.0.7 are present in the payload and must NOT appear in the output).
+    {
+      params: {},
+      payload: {
+        _network: 'HEDERA_NATIVE',
+        number: 99808576,
+        timestamp: { from: '1788980680.188146104', to: '1788980682.181209584' },
+        transactions: [
+          {
+            consensus_timestamp: '1788980867.267312104',
+            transaction_id: '0.0.10810953-1788980860-436496141',
+            name: 'CRYPTOTRANSFER',
+            result: 'SUCCESS',
+            node: '0.0.7',
+            entity_id: null,
+            charged_tx_fee: 1281463,
+            memo_base64: '',
+            transaction_hash: 'CAFE',
+            transfers: [
+              { account: '0.0.802', amount: 1281463 },
+              { account: '0.0.10810953', amount: -1281463 },
+            ],
+            token_transfers: [
+              { token_id: '0.0.456858', account: '0.0.10810953', amount: -2200000 },
+              { token_id: '0.0.456858', account: '0.0.10834734', amount: 2200000 },
+            ],
+            nft_transfers: [],
+            staking_reward_transfers: [],
+          },
+          {
+            consensus_timestamp: '1788980682.181209584',
+            transaction_id: '0.0.6319439-1788980678-284279404',
+            name: 'ETHEREUMTRANSACTION',
+            result: 'WRONG_NONCE',
+            node: '0.0.8',
+            entity_id: null,
+            charged_tx_fee: 1576202,
+            memo_base64: '',
+            transaction_hash: 'BEEF',
+            transfers: [
+              { account: '0.0.802', amount: 1576202 },
+              { account: '0.0.6319439', amount: -1576202 },
+            ],
+            token_transfers: [],
+            nft_transfers: [],
+            staking_reward_transfers: [],
+          },
+        ],
+      },
+      output: ['0.0.10810953', '0.0.10834734', '0.0.456858'],
+    },
     {
       params: {},
       payload: 'https://jiti.indexing.co/networks/base/34000000',
