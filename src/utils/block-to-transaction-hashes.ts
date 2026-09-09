@@ -5,6 +5,7 @@ import type { CardanoBlock } from '../types/beats/cardano';
 import type { CosmosBlock } from '../types/beats/cosmos';
 import type { EvmBlock } from '../types/beats/evm';
 import type { FilecoinBlock } from '../types/beats/filecoin';
+import type { HederaBlock } from '../types/beats/hedera';
 import type { RippleLedger } from '../types/beats/ripple';
 import type { StarknetBlock } from '../types/beats/starknet';
 import type { StellarLedger } from '../types/beats/stellar';
@@ -53,6 +54,14 @@ export function blockToTransactionHashes(block: Record<string, unknown>): string
           for (const msg of secpkMessages) {
             hashes.add(msg.CID['/']);
           }
+        }
+        break;
+      }
+      case 'HEDERA': {
+        // The 48-byte HAPI hash, hex-encoded — the value a hash watch matches. Kept in
+        // step with the token-transfers template, which reports the same form.
+        for (const tx of (block as unknown as HederaBlock).transactions || []) {
+          hashes.add(Buffer.from(tx.transaction_hash, 'base64').toString('hex'));
         }
         break;
       }

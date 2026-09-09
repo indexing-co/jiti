@@ -4,6 +4,7 @@ import type { CardanoBlock } from '../types/beats/cardano';
 import type { CosmosBlock } from '../types/beats/cosmos';
 import type { EvmBlock } from '../types/beats/evm';
 import type { FilecoinBlock } from '../types/beats/filecoin';
+import type { HederaBlock } from '../types/beats/hedera';
 import type { RippleLedger } from '../types/beats/ripple';
 import type { StarknetBlock } from '../types/beats/starknet';
 import type { StellarLedger } from '../types/beats/stellar';
@@ -32,6 +33,13 @@ export function blockToTimestamp(block: Record<string, unknown>): Date {
     }
     case 'FILECOIN': {
       return new Date((block as unknown as FilecoinBlock).Blocks[0].Timestamp * 1000);
+    }
+    case 'HEDERA': {
+      // Record files carry a consensus window; the block's own time is where it opens.
+      // `seconds.nanos` — Date holds milliseconds, so the remainder is truncated, never
+      // rounded up past the window.
+      const [seconds, nanos = ''] = (block as unknown as HederaBlock).timestamp.from.split('.');
+      return new Date(Number(seconds) * 1000 + Math.floor(Number(nanos.padEnd(9, '0')) / 1_000_000));
     }
     case 'RIPPLE': {
       return new Date((block as unknown as RippleLedger).close_time_iso);
