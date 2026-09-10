@@ -8,22 +8,33 @@
 // `/transactions?timestamp=gte:{from}&timestamp=lte:{to}`. Field names are kept verbatim
 // from the mirror node so the beat stays diffable against the REST API.
 
+/**
+ * An unscaled integer amount as it arrives from the mirror node.
+ *
+ * Amounts are tinyunits, so a token with 8 decimals and a large supply (JAM/Tune.FM, 4.4e18)
+ * crosses 2^53 on ordinary transfers — observed roughly hourly on mainnet. `JSON.parse`
+ * cannot hold those, so oscar's pacemaker re-reads the response text and hands the
+ * oversized ones back as exact decimal strings. `BigInt()` accepts both forms, which is how
+ * every amount below is read.
+ */
+export type HederaAmount = number | string;
+
 export interface HederaTransfer {
   account: string;
-  amount: number;
+  amount: HederaAmount;
   is_approval?: boolean;
 }
 
 export interface HederaTokenTransfer {
   token_id: string;
   account: string;
-  amount: number;
+  amount: HederaAmount;
   is_approval?: boolean;
 }
 
 export interface HederaNftTransfer {
   token_id: string;
-  serial_number: number;
+  serial_number: number | string;
   sender_account_id: string | null;
   receiver_account_id: string | null;
   is_approval?: boolean;
@@ -31,11 +42,11 @@ export interface HederaNftTransfer {
 
 export interface HederaStakingRewardTransfer {
   account: string;
-  amount: number;
+  amount: HederaAmount;
 }
 
 export interface HederaTransaction {
-  charged_tx_fee: number;
+  charged_tx_fee: HederaAmount;
   consensus_timestamp: string;
   entity_id: string | null;
   memo_base64: string | null;

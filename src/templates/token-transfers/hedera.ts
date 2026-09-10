@@ -747,5 +747,67 @@ export const HederaTokenTransfers: SubTemplate = {
         },
       ],
     },
+
+    // Mainnet block 99837410 (2026-09-10), trimmed to the one record that matters: a JAM
+    // (0.0.127877, 8 decimals, 4.4e18 supply) transfer of 10,576,394,458,046,487 tinyunits.
+    // That is past 2^53, so `JSON.parse` reads it as ...488 — one tinyunit off, silently.
+    // oscar's pacemaker therefore delivers oversized amounts as exact decimal strings, and
+    // this pins that the template reads them losslessly. Kept as a separate fixture from the
+    // block above so the string form is exercised on its own rather than hidden in a crowd.
+    {
+      params: { network: 'HEDERA_NATIVE' },
+      payload: {
+        _network: 'HEDERA_NATIVE',
+        count: 1,
+        hash: '0xd5698ea29fef0367d26544a0de092874da46ccb02e06b57a4752a5e3c8479e0403d18b962912358aa8d28cd87179f192',
+        number: 99837410,
+        previous_hash:
+          '0xe16b0764e3721165888f66fb566e760e7c9d4cd580175bb4a1a881c3f15fc4ae8fc1f6502dcaeed96bf8e8f00af05a65',
+        timestamp: {
+          from: '1789048684.038758104',
+          to: '1789048686.282497104',
+        },
+        transactions: [
+          {
+            charged_tx_fee: 0,
+            consensus_timestamp: '1789048685.299359109',
+            entity_id: null,
+            memo_base64: '',
+            name: 'CRYPTOTRANSFER',
+            nft_transfers: [],
+            node: null,
+            nonce: 5,
+            parent_consensus_timestamp: '1789048685.299359104',
+            result: 'SUCCESS',
+            scheduled: false,
+            staking_reward_transfers: [],
+            token_transfers: [
+              { token_id: '0.0.127877', account: '0.0.4601632', amount: '-10576394458046487', is_approval: false },
+              { token_id: '0.0.127877', account: '0.0.5065050', amount: '10576394458046487', is_approval: false },
+            ],
+            transaction_hash: 'ccoQ9n14PSMFQRSihM7W3Fo3gErCWfrA1v5ODfmC4e7vIpd+fnQ+tz0C/0akBmxb',
+            transaction_id: '0.0.995584-1789048681-093191785',
+            transfers: [],
+          },
+        ],
+      },
+      output: [
+        {
+          // Exact to the tinyunit: ...487, not the ...488 a double would have produced.
+          amount: 10576394458046487n,
+          blockNumber: 99837410,
+          from: '0.0.4601632',
+          index: '0.0.995584-1789048681-093191785:0',
+          memo: undefined,
+          timestamp: '2026-09-10T13:58:05.299Z',
+          to: '0.0.5065050',
+          token: '0.0.127877',
+          tokenType: 'TOKEN',
+          transactionGasFee: 0n,
+          transactionHash:
+            '71ca10f67d783d23054114a284ced6dc5a37804ac259fac0d6fe4e0df982e1eeef22977e7e743eb73d02ff46a4066c5b',
+        },
+      ],
+    },
   ],
 };
