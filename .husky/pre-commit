@@ -3,4 +3,13 @@
 
 npm run build
 npx pretty-quick --staged
-npx eslint .
+# Lint what is being committed, not the whole tree.
+#
+# `npx eslint .` linted every file in the repo, so ANY pre-existing error -- including one in an
+# untracked WIP file you never touched -- blocked every commit. The only way past was --no-verify,
+# which also skips the build gate above, so the hook's strictness was quietly buying LESS checking
+# rather than more. `pretty-quick --staged` on the line above was already scoped this way.
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.tsx')
+if [ -n "$staged" ]; then
+  printf '%s\n' "$staged" | tr '\n' '\0' | xargs -0 npx eslint
+fi
