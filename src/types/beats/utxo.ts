@@ -18,10 +18,17 @@ export interface UtxoBlockTxVinScriptsig {
 
 export interface UtxoBlockTxVinPrevoutScriptpubkey {
   asm: string;
-  desc: string;
+  desc?: string;
   hex: string;
-  address: string;
+  address?: string;
   type: string;
+  // ⚠️ Mirrors UtxoBlockTxVoutScriptpubkey deliberately. The two describe the same thing -- a
+  // scriptPubKey -- but this one required `address` and did not admit `addresses` at all, which
+  // is not true of the chains that most need it: Litecoin and Dogecoin predate `address` and emit
+  // only the legacy `reqSigs`/`addresses` pair. The type was encoding the same asymmetry the
+  // template had, so a correctly resolved legacy prevout could not even be described here.
+  reqSigs?: number;
+  addresses?: string[];
 }
 
 export interface UtxoBlockTxVinPrevout {
