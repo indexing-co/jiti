@@ -8,7 +8,7 @@ const swapsTemplate: Template = {
   key: 'swaps',
   name: 'DEX Swaps',
   description:
-    'Get every DEX swap and pool creation in a block: Uniswap v2/v3/v4 (and forks that reuse their events) and PancakeSwap v3.',
+    'Get every DEX swap, pool creation, liquidity change and v2 reserve sync in a block: Uniswap v2/v3/v4 (and forks that reuse their events) and PancakeSwap v3.',
   tags: ['EVM', 'DEX', 'SWAP', 'UNISWAP'],
   disabled: false,
   params: [
@@ -21,7 +21,7 @@ const swapsTemplate: Template = {
       type: 'STRING',
       multiple: true,
       optional: true,
-      values: ['SWAP', 'POOL_CREATED'],
+      values: ['SWAP', 'POOL_CREATED', 'LIQUIDITY', 'SYNC'],
     },
   ],
 
@@ -43,7 +43,12 @@ const swapsTemplate: Template = {
       if (types?.length && !types.includes(e.type)) return false;
       if (pool && e.pool !== pool) return false;
       if (wallet) {
-        const parties = e.type === 'SWAP' ? [e.sender, e.recipient, e.transactionFrom] : [e.transactionFrom];
+        const parties =
+          e.type === 'SWAP'
+            ? [e.sender, e.recipient, e.transactionFrom]
+            : e.type === 'LIQUIDITY'
+              ? [e.sender, e.transactionFrom]
+              : [e.transactionFrom];
         if (!parties.includes(wallet)) return false;
       }
       return true;

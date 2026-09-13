@@ -5,7 +5,7 @@ export * from './types';
 export * from './types/beats';
 export type { NetworkTransfer } from './templates/token-transfers/types';
 export type { Fill, FillCashLeg } from './templates/fills/types';
-export type { DexEvent, DexSwap, DexPoolCreated, DexProtocol } from './templates/swaps/types';
+export type { DexEvent, DexSwap, DexPoolCreated, DexLiquidity, DexSync, DexProtocol } from './templates/swaps/types';
 export { QUOTE_TOKENS, NATIVE_TOKEN } from './templates/fills/quotes';
 export type { RelayOrderEvent } from './templates/relay/types';
 export const utils = { ...allUtils };
