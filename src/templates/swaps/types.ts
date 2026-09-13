@@ -43,4 +43,24 @@ export type DexPoolCreated = DexEventBase & {
   sqrtPriceX96?: bigint;
 };
 
-export type DexEvent = DexSwap | DexPoolCreated;
+// Liquidity added to or removed from a pool. v2/v3 report the token amounts moved; v3/v4 report the change in
+// liquidity units. v4 reports no token amounts in the event.
+export type DexLiquidity = DexEventBase & {
+  type: 'LIQUIDITY';
+  action: 'ADD' | 'REMOVE';
+  // Positive token amounts moved into (ADD) or out of (REMOVE) the pool, where the event carries them (v2, v3).
+  amount0?: bigint;
+  amount1?: bigint;
+  // Signed change in pool liquidity units (v3, v4).
+  liquidityDelta?: bigint;
+  sender?: string;
+};
+
+// A v2 pair's reserves after any change (swap, mint, burn, skim): its exact current liquidity.
+export type DexSync = DexEventBase & {
+  type: 'SYNC';
+  reserve0: bigint;
+  reserve1: bigint;
+};
+
+export type DexEvent = DexSwap | DexPoolCreated | DexLiquidity | DexSync;

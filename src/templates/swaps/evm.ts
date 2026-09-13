@@ -25,6 +25,15 @@ const SIG = {
   // Velodrome/Aerodrome Slipstream-style CL factories: tick spacing instead of fee.
   CL_POOL_CREATED:
     'PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)',
+  V2_SYNC: 'Sync(uint112 reserve0, uint112 reserve1)',
+  V2_MINT: 'Mint(address indexed sender, uint256 amount0, uint256 amount1)',
+  V2_BURN: 'Burn(address indexed sender, uint256 amount0, uint256 amount1, address indexed to)',
+  V3_MINT:
+    'Mint(address sender, address indexed owner, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount, uint256 amount0, uint256 amount1)',
+  V3_BURN:
+    'Burn(address indexed owner, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount, uint256 amount0, uint256 amount1)',
+  V4_MODIFY_LIQUIDITY:
+    'ModifyLiquidity(bytes32 indexed id, address indexed sender, int24 tickLower, int24 tickUpper, int256 liquidityDelta, bytes32 salt)',
   V4_INITIALIZE:
     'Initialize(bytes32 indexed id, address indexed currency0, address indexed currency1, uint24 fee, int24 tickSpacing, address hooks, uint160 sqrtPriceX96, int24 tick)',
 };
@@ -62,7 +71,7 @@ export const EVMSwaps: SubTemplate = {
         if (!hit) continue;
         const d = hit.decoded;
 
-        // Signatures sharing a name (the three Swaps, the two PoolCreateds) are told apart by their fields.
+        // Signatures sharing a name (the Swaps, PoolCreateds, Mints and Burns) are told apart by their fields.
         if (hit.metadata.name === 'Swap' && 'amount0In' in d) {
           events.push({
             ...at('UNISWAP_V2', base.emitter),
@@ -112,6 +121,45 @@ export const EVMSwaps: SubTemplate = {
             token1: lower(d.token1),
             ...('fee' in d ? { fee: Number(d.fee) } : {}),
             tickSpacing: Number(d.tickSpacing),
+          });
+        } else if (hit.metadata.name === 'Sync') {
+          events.push({
+            ...at('UNISWAP_V2', base.emitter),
+            type: 'SYNC',
+            reserve0: BigInt(d.reserve0 as bigint),
+            reserve1: BigInt(d.reserve1 as bigint),
+          });
+        } else if ((hit.metadata.name === 'Mint' || hit.metadata.name === 'Burn') && !('amount' in d)) {
+          events.push({
+            ...at('UNISWAP_V2', base.emitter),
+            type: 'LIQUIDITY',
+            action: hit.metadata.name === 'Mint' ? 'ADD' : 'REMOVE',
+            amount0: d.amount0 as bigint,
+            amount1: d.amount1 as bigint,
+            sender: lower(d.sender),
+          });
+        } else if (hit.metadata.name === 'Mint' || hit.metadata.name === 'Burn') {
+          // A zero-liquidity v3 burn is a fee-collection poke, not a change in liquidity.
+          if ((d.amount as bigint) === 0n) continue;
+          const add = hit.metadata.name === 'Mint';
+          events.push({
+            ...at('UNISWAP_V3', base.emitter),
+            type: 'LIQUIDITY',
+            action: add ? 'ADD' : 'REMOVE',
+            amount0: d.amount0 as bigint,
+            amount1: d.amount1 as bigint,
+            liquidityDelta: add ? (d.amount as bigint) : -(d.amount as bigint),
+            sender: lower(add ? d.sender : d.owner),
+          });
+        } else if (hit.metadata.name === 'ModifyLiquidity') {
+          const delta = d.liquidityDelta as bigint;
+          if (delta === 0n) continue;
+          events.push({
+            ...at('UNISWAP_V4', lower(d.id)),
+            type: 'LIQUIDITY',
+            action: delta > 0n ? 'ADD' : 'REMOVE',
+            liquidityDelta: delta,
+            sender: lower(d.sender),
           });
         } else if (hit.metadata.name === 'Initialize') {
           events.push({
