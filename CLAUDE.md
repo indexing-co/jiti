@@ -26,6 +26,7 @@ Tests fetch real block data from `https://jiti.indexing.co/networks/{network}/{b
 - `src/templates/token-transfers/` - Per-chain token transfer extraction (one file per VM type)
 - `src/templates/token-transfers/index.ts` - Orchestrator that routes blocks to the right chain handler
 - `src/templates/token-transfers/types.ts` - `NetworkTransfer` type definition
+- `src/templates/swaps/` - DEX swaps + pool creations (`DexEvent`): Uniswap v2/v3/v4 event layouts (and forks reusing them) + PancakeSwap v3; amounts signed from the pool's side. Fixtures in `evm.fixtures.ts` are real Robinhood Chain blocks
 - `src/templates/filter-values.ts` - Filter values template
 - `src/templates/raw.ts` - Pass-through raw block template (disabled)
 - `src/utils/` - Multi-chain utility functions (block parsing, EVM helpers)
