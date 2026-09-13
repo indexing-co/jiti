@@ -16,11 +16,17 @@ eslint.config.js
 package-lock.json
 yarn.lock
 .env
+.env.*
+*.env
 
 # Ignore any local or temp files
 node_modules/
 .DS_Store
 *.log
+
+# The test runner writes every template's output here; it was shipping in each release (203 files)
+tmp/
+.claude/
 
 # Allow specific files in the dist folder
 !dist/types.d.ts
