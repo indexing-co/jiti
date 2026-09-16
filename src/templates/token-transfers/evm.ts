@@ -9,6 +9,15 @@ const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 // zkSync Era wraps native ETH as an ERC-20 at this address; Transfer logs from it represent native ETH movements
 const ZKSYNC_NATIVE_ETH = '0x000000000000000000000000000000000000800a';
 
+// Arc (Circle) uses USDC as its native gas token (18 decimals). Every native value movement — top-level
+// and contract-internal — emits a Transfer log from this system address, so those logs are the complete
+// NATIVE record (the public RPCs serve no traces, and `tx.value` alone misses internal payouts).
+const ARC_NATIVE_USDC = '0xfffffffffffffffffffffffffffffffffffffffe';
+// Arc's USDC ERC-20 interface is a view over that same native balance (6 decimals): every Transfer it
+// emits has a matching native log above. Reporting it as TOKEN would count each movement twice.
+const ARC_USDC_ERC20 = '0x3600000000000000000000000000000000000000';
+const ARC_NETWORKS = new Set(['ARC']);
+
 export const EVMTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'EVM',
 
@@ -17,6 +26,7 @@ export const EVMTokenTransfers: SubTemplate = {
     let transfers: NetworkTransfer[] = [];
 
     const typedBlock = block as unknown as EvmBlock;
+    const isArc = ARC_NETWORKS.has(String(typedBlock._network || '').toUpperCase());
 
     for (const tx of (typedBlock.transactions as any[]) || []) {
       if (!tx.receipt) {
@@ -29,10 +39,12 @@ export const EVMTokenTransfers: SubTemplate = {
       const effectiveGasPrice = tx.receipt.effectiveGasPrice ?? tx.gasPrice ?? 0;
       const transactionGasFee = BigInt(tx.receipt.gasUsed ?? 0) * BigInt(effectiveGasPrice);
 
-      // check if this tx has zkSync native ETH Transfer logs (used to skip unreliable traces)
+      // chains that report native value movements as Transfer logs from a system address. On zkSync
+      // only when present (used to skip unreliable traces); on Arc always, even when a tx has none.
       const hasZkSyncEthLogs = tx.receipt.logs.some(
         (log) => (log.address as string).toLowerCase() === ZKSYNC_NATIVE_ETH
       );
+      const nativeLogAddress = isArc ? ARC_NATIVE_USDC : hasZkSyncEthLogs ? ZKSYNC_NATIVE_ETH : null;
 
       // track direct ETH transfers
       if (!TOKEN_TYPES.length || TOKEN_TYPES.includes('NATIVE')) {
@@ -49,10 +61,10 @@ export const EVMTokenTransfers: SubTemplate = {
             transactionHash: tx.hash,
           });
         }
-        // on zkSync, native ETH transfers appear as Transfer logs from 0x800a (handled below)
-        else if (hasZkSyncEthLogs) {
+        // on zkSync (0x800a) and Arc (0xff…fe), native transfers appear as Transfer logs
+        else if (nativeLogAddress) {
           for (const log of tx.receipt.logs) {
-            if ((log.address as string).toLowerCase() !== ZKSYNC_NATIVE_ETH) continue;
+            if ((log.address as string).toLowerCase() !== nativeLogAddress) continue;
             const txfer = evmDecodeLogWithMetadata(log, [
               'Transfer(address indexed from, address indexed to, uint256 value)',
             ]);
@@ -160,8 +172,11 @@ export const EVMTokenTransfers: SubTemplate = {
       // track ERC20 transfers
       if (!TOKEN_TYPES.length || TOKEN_TYPES.includes('TOKEN')) {
         for (const log of tx.receipt.logs) {
+          const logAddress = (log.address as string).toLowerCase();
           // skip zkSync native ETH logs (already handled as NATIVE above)
-          if ((log.address as string).toLowerCase() === ZKSYNC_NATIVE_ETH) continue;
+          if (logAddress === ZKSYNC_NATIVE_ETH) continue;
+          // skip Arc native USDC logs (NATIVE above) and their ERC-20 mirror (same balance)
+          if (isArc && (logAddress === ARC_NATIVE_USDC || logAddress === ARC_USDC_ERC20)) continue;
 
           const txfer = evmDecodeLogWithMetadata(log, [
             'Transfer(address indexed from, address indexed to, uint256 value)',
@@ -553,6 +568,164 @@ export const EVMTokenTransfers: SubTemplate = {
           tokenType: 'NATIVE',
           transactionGasFee: 437584112000n,
           transactionHash: '0x2c71e49abff1a989dba62e0bf7ff8754f043dfe7325b92e6af7f07598211285e',
+        },
+      ],
+    },
+    // Arc (Circle) — USDC is the native gas token. Native value moves as Transfer logs from the
+    // 0xff…fe system address (18 dec), and the USDC ERC-20 at 0x3600… mirrors the SAME balance (6 dec).
+    // A router swap: native in via tx.value, native out to the pool internally (only visible as a log),
+    // an ERC-20 back, and a native dust refund.
+    //
+    // Inline fixture: ARC is not live in prod yet, so jiti.indexing.co serves no block for it.
+    // Ref: block 21186229, tx 0x0f96af2c… (logs trimmed to this tx; 172 Sync omitted)
+    {
+      params: {
+        network: 'ARC',
+      },
+      payload: {
+        _network: 'ARC',
+        number: 21186229,
+        timestamp: 1789576399,
+        transactions: [
+          {
+            hash: '0x0f96af2c0b10fc168cd7d894fb263a0ec411158b3ce15a07e59e79cf4ebd4f49',
+            blockNumber: 21186229,
+            from: '0x1b7abb7e17f86344014c2960254708d64d8bc15e',
+            to: '0x80aa550313c04d4987b06185e37cc7c03ca9f233',
+            value: '0xe256664b20167cac6',
+            receipt: {
+              blockNumber: 21186229,
+              gasUsed: 163630,
+              effectiveGasPrice: 134893702535,
+              status: true,
+              logs: [
+                // 167 — native: tx.value into the router. MUST be NATIVE.
+                {
+                  address: '0xfffffffffffffffffffffffffffffffffffffffe',
+                  topics: [
+                    '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                    '0x0000000000000000000000001b7abb7e17f86344014c2960254708d64d8bc15e',
+                    '0x00000000000000000000000080aa550313c04d4987b06185e37cc7c03ca9f233',
+                  ],
+                  data: '0x00000000000000000000000000000000000000000000000e256664b20167cac6',
+                  logIndex: 167,
+                },
+                // 168 — USDC ERC-20 Approval. Not a transfer.
+                {
+                  address: '0x3600000000000000000000000000000000000000',
+                  topics: [
+                    '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925',
+                    '0x00000000000000000000000080aa550313c04d4987b06185e37cc7c03ca9f233',
+                    '0x0000000000000000000000001f7d7550b1b028f7571e69a784071f0205fd2efa',
+                  ],
+                  data: '0x000000000000000000000000000000000000000000000000000000000f8dc579',
+                  logIndex: 168,
+                },
+                // 169 — native: router pays the pool (contract-internal, not in tx.value). MUST be NATIVE.
+                {
+                  address: '0xfffffffffffffffffffffffffffffffffffffffe',
+                  topics: [
+                    '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                    '0x00000000000000000000000080aa550313c04d4987b06185e37cc7c03ca9f233',
+                    '0x0000000000000000000000000979fe8c995202acfdde62cc8500f6ae17ed81e0',
+                  ],
+                  data: '0x00000000000000000000000000000000000000000000000e2566648957549000',
+                  logIndex: 169,
+                },
+                // 170 — ERC-20 mirror of 169 (260.949369 USDC, 6 dec). Must NOT be emitted.
+                {
+                  address: '0x3600000000000000000000000000000000000000',
+                  topics: [
+                    '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                    '0x00000000000000000000000080aa550313c04d4987b06185e37cc7c03ca9f233',
+                    '0x0000000000000000000000000979fe8c995202acfdde62cc8500f6ae17ed81e0',
+                  ],
+                  data: '0x000000000000000000000000000000000000000000000000000000000f8dc579',
+                  logIndex: 170,
+                },
+                // 171 — an unrelated ERC-20 out of the pool. MUST be TOKEN.
+                {
+                  address: '0xdb8daf92d0f093a8f72f0db25e3ebe7c09c39650',
+                  topics: [
+                    '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                    '0x0000000000000000000000000979fe8c995202acfdde62cc8500f6ae17ed81e0',
+                    '0x0000000000000000000000001b7abb7e17f86344014c2960254708d64d8bc15e',
+                  ],
+                  data: '0x0000000000000000000000000000000000000000000000000001773915055f90',
+                  logIndex: 171,
+                },
+                // 173 — Swap event. Not a transfer.
+                {
+                  address: '0x0979fe8c995202acfdde62cc8500f6ae17ed81e0',
+                  topics: [
+                    '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822',
+                    '0x0000000000000000000000001f7d7550b1b028f7571e69a784071f0205fd2efa',
+                    '0x0000000000000000000000001b7abb7e17f86344014c2960254708d64d8bc15e',
+                  ],
+                  data: '0x000000000000000000000000000000000000000000000000000000000f8dc579000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001773915055f90',
+                  logIndex: 173,
+                },
+                // 174 — native: dust refund back to the sender. MUST be NATIVE.
+                {
+                  address: '0xfffffffffffffffffffffffffffffffffffffffe',
+                  topics: [
+                    '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                    '0x00000000000000000000000080aa550313c04d4987b06185e37cc7c03ca9f233',
+                    '0x0000000000000000000000001b7abb7e17f86344014c2960254708d64d8bc15e',
+                  ],
+                  data: '0x00000000000000000000000000000000000000000000000000000028aa133ac6',
+                  logIndex: 174,
+                },
+              ],
+            },
+          },
+        ],
+      },
+      output: [
+        {
+          amount: 260949369174652078790n,
+          blockNumber: 21186229,
+          from: '0x1b7abb7e17f86344014c2960254708d64d8bc15e',
+          index: 167,
+          timestamp: '2026-09-16T16:33:19.000Z',
+          to: '0x80aa550313c04d4987b06185e37cc7c03ca9f233',
+          tokenType: 'NATIVE',
+          transactionGasFee: 22072656545802050n,
+          transactionHash: '0x0f96af2c0b10fc168cd7d894fb263a0ec411158b3ce15a07e59e79cf4ebd4f49',
+        },
+        {
+          amount: 260949369000000000000n,
+          blockNumber: 21186229,
+          from: '0x80aa550313c04d4987b06185e37cc7c03ca9f233',
+          index: 169,
+          timestamp: '2026-09-16T16:33:19.000Z',
+          to: '0x0979fe8c995202acfdde62cc8500f6ae17ed81e0',
+          tokenType: 'NATIVE',
+          transactionGasFee: 22072656545802050n,
+          transactionHash: '0x0f96af2c0b10fc168cd7d894fb263a0ec411158b3ce15a07e59e79cf4ebd4f49',
+        },
+        {
+          amount: 174652078790n,
+          blockNumber: 21186229,
+          from: '0x80aa550313c04d4987b06185e37cc7c03ca9f233',
+          index: 174,
+          timestamp: '2026-09-16T16:33:19.000Z',
+          to: '0x1b7abb7e17f86344014c2960254708d64d8bc15e',
+          tokenType: 'NATIVE',
+          transactionGasFee: 22072656545802050n,
+          transactionHash: '0x0f96af2c0b10fc168cd7d894fb263a0ec411158b3ce15a07e59e79cf4ebd4f49',
+        },
+        {
+          amount: 412562026225552n,
+          blockNumber: 21186229,
+          from: '0x0979fe8c995202acfdde62cc8500f6ae17ed81e0',
+          index: 171,
+          timestamp: '2026-09-16T16:33:19.000Z',
+          to: '0x1b7abb7e17f86344014c2960254708d64d8bc15e',
+          token: '0xdb8daf92d0f093a8f72f0db25e3ebe7c09c39650',
+          tokenType: 'TOKEN',
+          transactionGasFee: 22072656545802050n,
+          transactionHash: '0x0f96af2c0b10fc168cd7d894fb263a0ec411158b3ce15a07e59e79cf4ebd4f49',
         },
       ],
     },
