@@ -19,6 +19,7 @@ import { THORChainTokenTransfers } from './thorchain';
 import { TONTokenTransfers } from './ton';
 import { TRONTokenTransfers } from './tron';
 import { UTXOTokenTransfers } from './utxo';
+import { starknetNormalizeAddress } from '../../utils/starknet-normalize-address';
 
 const SUB_TEMPLATES = [
   AptosTokenTransfers,
@@ -102,6 +103,17 @@ const tokenTransfersTemplate: Template = {
     for (const sub of SUB_TEMPLATES.concat(UNIVERSAL_SUB_TEMPLATES)) {
       if (sub.match(block)) {
         transfers = sub.transform(block, _ctx) as NetworkTransfer[];
+        if (sub === StarknetTokenTransfers && _ctx?.params) {
+          // Starknet transfers carry padded addresses; accept the stripped form callers copy from RPC output.
+          _ctx = {
+            ..._ctx,
+            params: {
+              ..._ctx.params,
+              contractAddress: starknetNormalizeAddress(_ctx.params.contractAddress as string),
+              walletAddress: starknetNormalizeAddress(_ctx.params.walletAddress as string),
+            },
+          };
+        }
         break;
       }
     }
