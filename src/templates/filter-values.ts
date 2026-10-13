@@ -20,7 +20,8 @@ const filterValuesTemplate: Template = {
 
   transform: (block) => {
     let finalValues: string[] | Set<string> = new Set();
-    for (const txfer of tokenTransfersTemplate.transform(block) as { from: string; to: string }[]) {
+    const transfers = tokenTransfersTemplate.transform(block) as { from: string; to: string; token?: string }[];
+    for (const txfer of transfers) {
       finalValues.add(txfer.from);
       finalValues.add(txfer.to);
     }
@@ -175,8 +176,19 @@ const filterValuesTemplate: Template = {
       }
 
       case 'STARKNET': {
+        // Transfers carry padded addresses (0x0…, 64 hex); RPC data carries them stripped. A watched
+        // address can arrive in either form, so index both for every transfer party and token.
+        for (const txfer of transfers) {
+          for (const v of [txfer.from, txfer.to, txfer.token]) {
+            if (v?.startsWith('0x')) {
+              finalValues.add(v);
+              finalValues.add('0x' + (v.slice(2).replace(/^0+/, '') || '0'));
+            }
+          }
+        }
+
         for (const tx of (block.transactions as Record<string, unknown>[]) || []) {
-          const from = (tx.send_address as string)?.toLowerCase() || NULL_ADDRESS;
+          const from = (tx.sender_address as string)?.toLowerCase() || NULL_ADDRESS;
           finalValues.add(from);
 
           if (tx.receipt as Record<string, unknown>) {
