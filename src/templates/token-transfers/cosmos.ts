@@ -7,6 +7,18 @@ import { NetworkTransfer } from './types';
 import { blockToVM } from '../../utils/block-to-vm';
 import type { CosmosBlock } from '../../types/beats/cosmos';
 
+// The staking denom of each chain we index. Only this denom is the chain's NATIVE asset; anything else moved by a
+// MsgSend / MsgTransfer (ibc/..., factory/..., uusd on Terra Classic) is a TOKEN identified by its denom. A chain
+// missing from this map keeps the old behaviour (every denom NATIVE) so nothing changes for it until it is added.
+const BASE_DENOM_BY_CHAIN_ID: Record<string, string> = {
+  'cosmoshub-4': 'uatom',
+  celestia: 'utia',
+  'phoenix-1': 'uluna',
+  'columbus-5': 'uluna',
+  'injective-1': 'inj',
+  'pio-mainnet-1': 'nhash',
+};
+
 export const CosmosTokenTransfers: SubTemplate = {
   match: (block) => blockToVM(block) === 'COSMOS',
 
@@ -17,8 +29,15 @@ export const CosmosTokenTransfers: SubTemplate = {
 
     const blockNumber = Number(typedBlock.block.header.height);
     const blockTimestamp = new Date(typedBlock.block.header.time).toISOString();
+    const baseDenom = BASE_DENOM_BY_CHAIN_ID[typedBlock.block.header.chain_id];
+    // block_results lines up with block.data.txs by index; a non-zero code is a failed tx that moved nothing.
+    const txResults = Array.isArray(typedBlock.txs_results) ? typedBlock.txs_results : undefined;
 
-    for (const txRaw of typedBlock.block.data.txs || []) {
+    const txs = typedBlock.block.data.txs || [];
+    for (let txIdx = 0; txIdx < txs.length; txIdx += 1) {
+      const txRaw = txs[txIdx];
+      const txCode = txResults?.[txIdx]?.code;
+      if (txCode !== undefined && txCode !== null && Number(txCode) !== 0) continue;
       let decoded: DecodedTxRaw;
       try {
         decoded = decodeTxRaw(new Uint8Array(Buffer.from(txRaw, 'base64')));
@@ -32,6 +51,7 @@ export const CosmosTokenTransfers: SubTemplate = {
       for (const message of decoded.body.messages) {
         if (['/ibc.applications.transfer.v1.MsgTransfer', '/cosmos.bank.v1beta1.MsgSend'].includes(message.typeUrl)) {
           const decodedMsg = registry.decode(message);
+          const denom = decodedMsg.token?.denom || decodedMsg.amount?.find((a) => a?.denom)?.denom;
           transfers.push({
             amount: BigInt(decodedMsg.token?.amount || decodedMsg.amount?.find((a) => a?.amount)?.amount || 0),
             blockNumber,
@@ -39,8 +59,8 @@ export const CosmosTokenTransfers: SubTemplate = {
             memo: decodedMsg.memo,
             timestamp: blockTimestamp,
             to: decodedMsg.receiver || decodedMsg.toAddress,
-            token: decodedMsg.token?.denom || decodedMsg.amount?.find((a) => a?.denom)?.denom,
-            tokenType: 'NATIVE',
+            token: denom,
+            tokenType: !baseDenom || denom === baseDenom ? 'NATIVE' : 'TOKEN',
             transactionGasFee,
             transactionHash: txHash.slice(2).toUpperCase(),
           });
